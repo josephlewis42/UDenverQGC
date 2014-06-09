@@ -55,22 +55,12 @@ public slots:
 
     void setActiveUAS(UASInterface* uas);
 
-    void updateBattery(UASInterface* uas, double voltage, double current, double percent, int seconds);
+    void updateBattery(UASInterface* uas, double voltage, double percent, int seconds);
     void updateCPULoad(UASInterface* uas, double load);
-    /** 
-	 * @brief Set the loss rate of packets received by the MAV.
-	 * @param uasId UNUSED
-	 * @param receiveLoss A percentage value (0-100) of how many message the UAS has failed to receive.
-	 */
+    /** @brief Set the loss rate of packets received by the MAV */
     void updateReceiveLoss(int uasId, float receiveLoss);
-
-    /**
-	 * @brief Set the loss rate of packets sent from the MAV 
-	 * @param uasId UNUSED
-	 * @param sendLoss A percentage value (0-100) of how many message QGC has failed to receive.
-	 */
+    /** @brief Set the loss rate of packets sent from the MAV */
     void updateSendLoss(int uasId, float sendLoss);
-	
     /** @brief Update the error count */
     void updateErrorCount(int uasid, QString component, QString device, int count);
 

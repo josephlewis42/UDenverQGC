@@ -18,13 +18,12 @@ QGCMAVLinkMessageSender::QGCMAVLinkMessageSender(MAVLinkProtocol* mavlink, QWidg
     ui->treeWidget->setHeaderLabels(header);
     createTreeView();
     connect(&refreshTimer, SIGNAL(timeout()), this, SLOT(refresh()));
-    //refreshTimer.start(1000); // Refresh at 1 Hz interval
-
-    connect(ui->sendButton, SIGNAL(pressed()), this, SLOT(sendMessage()));
+    refreshTimer.start(1000); // Refresh at 1 Hz interval
 }
 
 void QGCMAVLinkMessageSender::refresh()
 {
+    unsigned int maxUpdateRate = 0;
     // Send messages
     foreach (unsigned int i, managementItems.keys())
     {
@@ -37,18 +36,8 @@ void QGCMAVLinkMessageSender::refresh()
     // ui->treeWidget->topLevelItem(0)->children();
 }
 
-bool QGCMAVLinkMessageSender::sendMessage()
-{
-    return sendMessage(ui->messageIdSpinBox->value());
-}
-
 bool QGCMAVLinkMessageSender::sendMessage(unsigned int msgid)
 {
-    QString msgname(messageInfo[msgid].name);
-    if (msgid == 0 || msgid > 255 || messageInfo[msgid].name == NULL || msgname.compare(QString("EMPTY")))
-    {
-        return false;
-    }
     bool result = true;
 
     if (treeWidgetItems.contains(msgid))
@@ -90,7 +79,7 @@ bool QGCMAVLinkMessageSender::sendMessage(unsigned int msgid)
                     uint8_t* nums = m+messageInfo[msgid].fields[fieldid].wire_offset;
                     for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
                     {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
+                        if (field->data(1, Qt::DisplayRole).toString().split(" ").size() > j)
                         {
                             nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toInt();
                         }
@@ -103,128 +92,207 @@ bool QGCMAVLinkMessageSender::sendMessage(unsigned int msgid)
                     *u = field->data(1, Qt::DisplayRole).toChar().toAscii();
                 }
                 break;
-            case MAVLINK_TYPE_INT8_T:
-                if (messageInfo[msgid].fields[fieldid].array_length > 0)
-                {
-                    int8_t* nums = reinterpret_cast<int8_t*>((m+messageInfo[msgid].fields[fieldid].wire_offset));
-                    for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
-                    {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
-                        {
-                            nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toInt();
-                        }
-                    }
-                }
-                else
-                {
-                    // Single value
-                    int8_t* u = reinterpret_cast<int8_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    *u = field->data(1, Qt::DisplayRole).toChar().toAscii();
-                }
-                break;
-            case MAVLINK_TYPE_INT16_T:
-            case MAVLINK_TYPE_UINT16_T:
-                if (messageInfo[msgid].fields[fieldid].array_length > 0)
-                {
-                    uint16_t* nums = reinterpret_cast<uint16_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
-                    {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
-                        {
-                            nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toUInt();
-                        }
-                    }
-                }
-                else
-                {
-                    // Single value
-                    uint16_t* u = reinterpret_cast<uint16_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    *u = field->data(1, Qt::DisplayRole).toUInt();
-                }
-                break;
-            case MAVLINK_TYPE_INT32_T:
-            case MAVLINK_TYPE_UINT32_T:
-                if (messageInfo[msgid].fields[fieldid].array_length > 0)
-                {
-                    int32_t* nums = reinterpret_cast<int32_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
-                    {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
-                        {
-                            nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toUInt();
-                        }
-                    }
-                }
-                else
-                {
-                    // Single value
-                    int32_t* u = reinterpret_cast<int32_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    *u = field->data(1, Qt::DisplayRole).toUInt();
-                }
-                break;
-            case MAVLINK_TYPE_INT64_T:
-            case MAVLINK_TYPE_UINT64_T:
-                if (messageInfo[msgid].fields[fieldid].array_length > 0)
-                {
-                    int64_t* nums = reinterpret_cast<int64_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
-                    {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
-                        {
-                            nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toULongLong();
-                        }
-                    }
-                }
-                else
-                {
-                    // Single value
-                    int64_t* u = reinterpret_cast<int64_t*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    *u = field->data(1, Qt::DisplayRole).toULongLong();
-                }
-                break;
-            case MAVLINK_TYPE_FLOAT:
-                if (messageInfo[msgid].fields[fieldid].array_length > 0)
-                {
-                    float* nums = reinterpret_cast<float*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
-                    {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
-                        {
-                            nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toFloat();
-                        }
-                    }
-                }
-                else
-                {
-                    // Single value
-                    float* u = reinterpret_cast<float*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    *u = field->data(1, Qt::DisplayRole).toFloat();
-                }
-                break;
-            case MAVLINK_TYPE_DOUBLE:
-                if (messageInfo[msgid].fields[fieldid].array_length > 0)
-                {
-                    double* nums = reinterpret_cast<double*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    for (unsigned int j = 0; j < messageInfo[msgid].fields[fieldid].array_length; ++j)
-                    {
-                        if ((unsigned int)(field->data(1, Qt::DisplayRole).toString().split(" ").size()) > j)
-                        {
-                            nums[j] = field->data(1, Qt::DisplayRole).toString().split(" ").at(j).toDouble();
-                        }
-                    }
-                }
-                else
-                {
-                    // Single value
-                    double* u = reinterpret_cast<double*>(m+messageInfo[msgid].fields[fieldid].wire_offset);
-                    *u = field->data(1, Qt::DisplayRole).toDouble();
-                }
-                break;
+                //            case MAVLINK_TYPE_INT8_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    int8_t* nums = (int8_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        if (field->data(1, DisplayRole).toString().split(" ").size() > j)
+                //                        {
+                //                            nums[j] = field->data(1, DisplayRole).toString().split(" ").at(j).toInt();
+                //                        }
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("int8_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    int8_t n = *((int8_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "int8_t");
+                //                    item->setData(1, Qt::DisplayRole, n);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_UINT16_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    uint16_t* nums = (uint16_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("uint16_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    uint16_t n = *((uint16_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "uint16_t");
+                //                    item->setData(1, Qt::DisplayRole, n);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_INT16_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    int16_t* nums = (int16_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("int16_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    int16_t n = *((int16_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "int16_t");
+                //                    item->setData(1, Qt::DisplayRole, n);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_UINT32_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    uint32_t* nums = (uint32_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("uint32_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    float n = *((uint32_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "uint32_t");
+                //                    item->setData(1, Qt::DisplayRole, n);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_INT32_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    int32_t* nums = (int32_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("int32_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    int32_t n = *((int32_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "int32_t");
+                //                    item->setData(1, Qt::DisplayRole, n);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_FLOAT:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    float* nums = (float*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("float[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    float f = *((float*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "float");
+                //                    item->setData(1, Qt::DisplayRole, f);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_DOUBLE:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    double* nums = (double*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("double[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    double f = *((double*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "double");
+                //                    item->setData(1, Qt::DisplayRole, f);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_UINT64_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    uint64_t* nums = (uint64_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("uint64_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    uint64_t n = *((uint64_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "uint64_t");
+                //                    item->setData(1, Qt::DisplayRole, (quint64) n);
+                //                }
+                //                break;
+                //            case MAVLINK_TYPE_INT64_T:
+                //                if (messageInfo[msgid].fields[fieldid].array_length > 0)
+                //                {
+                //                    int64_t* nums = (int64_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset);
+                //                    // Enforce null termination
+                //                    QString tmp("%1, ");
+                //                    QString string;
+                //                    for (unsigned int j = 0; j < messageInfo[msgid].fields[j].array_length; ++j)
+                //                    {
+                //                        string += tmp.arg(nums[j]);
+                //                    }
+                //                    item->setData(2, Qt::DisplayRole, QString("int64_t[%1]").arg(messageInfo[msgid].fields[fieldid].array_length));
+                //                    item->setData(1, Qt::DisplayRole, string);
+                //                }
+                //                else
+                //                {
+                //                    // Single value
+                //                    int64_t n = *((int64_t*)(m+messageInfo[msgid].fields[fieldid].wire_offset));
+                //                    item->setData(2, Qt::DisplayRole, "int64_t");
+                //                    item->setData(1, Qt::DisplayRole, (qint64) n);
+                //                }
+                //                break;
             }
         }
-
-        // Send message
-        protocol->sendMessage(msg);
     }
     else
     {

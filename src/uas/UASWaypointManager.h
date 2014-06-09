@@ -33,7 +33,7 @@ This file is part of the QGROUNDCONTROL project
 #define UASWAYPOINTMANAGER_H
 
 #include <QObject>
-#include <QList>
+#include <QVector>
 #include <QTimer>
 #include "Waypoint.h"
 #include "QGCMAVLink.h"
@@ -44,7 +44,7 @@ class UASInterface;
  * @brief Implementation of the MAVLINK waypoint protocol
  *
  * This class handles the communication with a waypoint manager on the MAV.
- * All waypoints are stored in the QList waypoints, modifications can be done with the WaypointList widget.
+ * All waypoints are stored in the QVector waypoints, modifications can be done with the WaypointList widget.
  * Notice that currently the access to the internal waypoint storage is not guarded nor thread-safe. This works as long as no other widget alters the data.
  *
  * See http://qgroundcontrol.org/waypoint_protocol for more information about the protocol and the states.
@@ -57,7 +57,7 @@ private:
         WP_IDLE = 0,        ///< Waiting for commands
         WP_SENDLIST,        ///< Initial state for sending waypoints to the MAV
         WP_SENDLIST_SENDWPS,///< Sending waypoints
-        WP_GETLIST,         ///< Initial state for retrieving waypoints from the MAV
+        WP_GETLIST,         ///< Initial state for retrieving wayppoints from the MAV
         WP_GETLIST_GETWPS,  ///< Receiving waypoints
         WP_CLEARLIST,       ///< Clearing waypoint list on the MAV
         WP_SETCURRENT       ///< Setting new current waypoint on the MAV
@@ -65,10 +65,7 @@ private:
 
 public:
     UASWaypointManager(UAS* uas=NULL);   ///< Standard constructor
-    ~UASWaypointManager();
-    bool guidedModeSupported();
 
-    void goToWaypoint(Waypoint *wp);
     /** @name Received message handlers */
     /*@{*/
     void handleWaypointCount(quint8 systemId, quint8 compId, quint16 count);                            ///< Handles received waypoint count messages
@@ -91,15 +88,15 @@ public:
 
     /** @name Waypoint list operations */
     /*@{*/
-    const QList<Waypoint *> &getWaypointEditableList(void) {
+    const QVector<Waypoint *> &getWaypointEditableList(void) {
         return waypointsEditable;    ///< Returns a const reference to the waypoint list.
     }
-    const QList<Waypoint *> &getWaypointViewOnlyList(void) {
+    const QVector<Waypoint *> &getWaypointViewOnlyList(void) {
         return waypointsViewOnly;    ///< Returns a const reference to the waypoint list.
     }
-    const QList<Waypoint *> getGlobalFrameWaypointList();  ///< Returns a global waypoint list
-    const QList<Waypoint *> getGlobalFrameAndNavTypeWaypointList(); ///< Returns a global waypoint list containing only waypoints suitable for navigation. Actions and other mission items are filtered out.
-    const QList<Waypoint *> getNavTypeWaypointList(); ///< Returns a waypoint list containing only waypoints suitable for navigation. Actions and other mission items are filtered out.
+    const QVector<Waypoint *> getGlobalFrameWaypointList();  ///< Returns a global waypoint list
+    const QVector<Waypoint *> getGlobalFrameAndNavTypeWaypointList(); ///< Returns a global waypoint list containing only waypoints suitable for navigation. Actions and other mission items are filtered out.
+    const QVector<Waypoint *> getNavTypeWaypointList(); ///< Returns a waypoint list containing only waypoints suitable for navigation. Actions and other mission items are filtered out.
     int getIndexOf(Waypoint* wp);                   ///< Get the index of a waypoint in the list
     int getGlobalFrameIndexOf(Waypoint* wp);    ///< Get the index of a waypoint in the list, counting only global waypoints
     int getGlobalFrameAndNavTypeIndexOf(Waypoint* wp); ///< Get the index of a waypoint in the list, counting only global AND navigation mode waypoints
@@ -112,11 +109,9 @@ public:
     int getLocalFrameCount();   ///< Get the count of local waypoints in the list
     /*@}*/
 
-    UAS* getUAS();
-    float getAltitudeRecommendation();
-    int getFrameRecommendation();
-    float getAcceptanceRadiusRecommendation();
-    float getHomeAltitudeOffsetDefault();
+    UAS* getUAS() {
+        return this->uas;    ///< Returns the owning UAS
+    }
 
 private:
     /** @name Message send functions */
@@ -171,16 +166,13 @@ private:
     quint8 current_partner_compid;                  ///< The current protocol communication target component
     bool read_to_edit;                              ///< If true, after readWaypoints() incoming waypoints will be copied both to "edit"-tab and "view"-tab. Otherwise, only to "view"-tab.
 
-    QList<Waypoint *> waypointsViewOnly;                  ///< local copy of current waypoint list on MAV
-    QList<Waypoint *> waypointsEditable;                  ///< local editable waypoint list
+    QVector<Waypoint *> waypointsViewOnly;                  ///< local copy of current waypoint list on MAV
+    QVector<Waypoint *> waypointsEditable;                  ///< local editable waypoint list
     Waypoint* currentWaypointEditable;                      ///< The currently used waypoint
-    QList<mavlink_mission_item_t *> waypoint_buffer;  ///< buffer for waypoints during communication
+    QVector<mavlink_mission_item_t *> waypoint_buffer;  ///< buffer for waypoints during communication
     QTimer protocol_timer;                          ///< Timer to catch timeouts
     bool standalone;                                ///< If standalone is set, do not write to UAS
     quint16 uasid;
-
-    // XXX export to settings
-    static const float defaultAltitudeHomeOffset;    ///< Altitude offset in meters from home for new waypoints
 };
 
 #endif // UASWAYPOINTMANAGER_H

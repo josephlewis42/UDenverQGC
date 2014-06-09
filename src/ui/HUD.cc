@@ -34,9 +34,8 @@ This file is part of the QGROUNDCONTROL project
 #include <QMenu>
 #include <QDesktopServices>
 #include <QFileDialog>
-#include <QPaintEvent>
-#include <QDebug>
 
+#include <QDebug>
 #include <cmath>
 #include <qmath.h>
 #include <limits>
@@ -44,8 +43,13 @@ This file is part of the QGROUNDCONTROL project
 #include "UASManager.h"
 #include "UAS.h"
 #include "HUD.h"
+#include "MG.h"
 #include "QGC.h"
-#include "MainWindow.h"
+
+// Fix for some platforms, e.g. windows
+#ifndef GL_MULTISAMPLE
+#define GL_MULTISAMPLE  0x809D
+#endif
 
 /**
  * @warning The HUD widget will not start painting its content automatically
@@ -56,7 +60,7 @@ This file is part of the QGROUNDCONTROL project
  * @param parent
  */
 HUD::HUD(int width, int height, QWidget* parent)
-    : QLabel(parent),
+    : QGLWidget(QGLFormat(QGL::SampleBuffers), parent),
       uas(NULL),
       yawInt(0.0f),
       mode(tr("UNKNOWN MODE")),
@@ -66,7 +70,7 @@ HUD::HUD(int width, int height, QWidget* parent)
       yCenterOffset(0.0f),
       vwidth(200.0f),
       vheight(150.0f),
-      vGaugeSpacing(65.0f),
+      vGaugeSpacing(50.0f),
       vPitchPerDeg(6.0f), ///< 4 mm y translation per degree)
       rawBuffer1(NULL),
       rawBuffer2(NULL),
@@ -79,6 +83,12 @@ HUD::HUD(int width, int height, QWidget* parent)
       receivedChannels(1),
       receivedWidth(640),
       receivedHeight(480),
+      defaultColor(QColor(70, 200, 70)),
+      setPointColor(QColor(200, 20, 200)),
+      warningColor(Qt::yellow),
+      criticalColor(Qt::red),
+      infoColor(QColor(20, 200, 20)),
+      fuelColor(criticalColor),
       warningBlinkRate(5),
       refreshTimer(new QTimer(this)),
       noCamera(true),
@@ -109,13 +119,11 @@ HUD::HUD(int width, int height, QWidget* parent)
       load(0.0f),
       offlineDirectory(""),
       nextOfflineImage(""),
-      HUDInstrumentsEnabled(false),
-      videoEnabled(true),
+      hudInstrumentsEnabled(true),
+      videoEnabled(false),
       xImageFactor(1.0),
       yImageFactor(1.0),
-      imageLoggingEnabled(false),
-      imageRequested(false),
-      image(NULL)
+      imageRequested(false)
 {
     // Set auto fill to false
     setAutoFillBackground(false);
@@ -126,16 +134,34 @@ HUD::HUD(int width, int height, QWidget* parent)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     scalingFactor = this->width()/vwidth;
 
-    // Set up the initial color theme. This can be updated by a styleChanged
-    // signal from MainWindow.
-    styleChanged(((MainWindow*)parent)->getStyle());
+    // Fill with black background
+    QImage fill = QImage(width, height, QImage::Format_Indexed8);
+    fill.setNumColors(3);
+    fill.setColor(0, qRgb(0, 0, 0));
+    fill.setColor(1, qRgb(0, 0, 0));
+    fill.setColor(2, qRgb(0, 0, 0));
+    fill.fill(0);
+
+    //QString imagePath = "/Users/user/Desktop/frame0000.png";
+    //qDebug() << __FILE__ << __LINE__ << "template image:" << imagePath;
+    //fill = QImage(imagePath);
+
+    glImage = QGLWidget::convertToGLFormat(fill);
 
     // Refresh timer
     refreshTimer->setInterval(updateInterval);
-    connect(refreshTimer, SIGNAL(timeout()), this, SLOT(repaint()));
+    connect(refreshTimer, SIGNAL(timeout()), this, SLOT(paintHUD()));
 
     // Resize to correct size and fill with image
-    QWidget::resize(this->width(), this->height());
+    resize(this->width(), this->height());
+    //glDrawPixels(glImage.width(), glImage.height(), GL_RGBA, GL_UNSIGNED_BYTE, glImage.bits());
+
+    // Set size once
+    //setFixedSize(fill.size());
+    //setMinimumSize(fill.size());
+    //setMaximumSize(fill.size());
+    // Lock down the size
+    //setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
 
     fontDatabase = QFontDatabase();
     const QString fontFileName = ":/general/vera.ttf"; ///< Font file is part of the QRC file and compiled into the app
@@ -150,11 +176,6 @@ HUD::HUD(int width, int height, QWidget* parent)
     } else {
         if (font.family() != fontFamilyName) qDebug() << "ERROR! WRONG FONT LOADED: " << fontFamilyName;
     }
-
-    // Connect the themeChanged signal from the MainWindow to this widget, so it
-    // can change it's styling accordingly.
-    connect((MainWindow*)parent, SIGNAL(styleChanged(MainWindow::QGC_MAINWINDOW_STYLE)),
-            this, SLOT(styleChanged(MainWindow::QGC_MAINWINDOW_STYLE)));
 
     // Connect with UAS
     connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(setActiveUAS(UASInterface*)));
@@ -174,46 +195,11 @@ QSize HUD::sizeHint() const
     return QSize(width(), (width()*3.0f)/4);
 }
 
-void HUD::styleChanged(MainWindow::QGC_MAINWINDOW_STYLE newTheme)
-{
-    // Generate a background image that's dependent on the current color scheme.
-    QImage fill = QImage(width(), height(), QImage::Format_Indexed8);
-    if (newTheme == MainWindow::QGC_MAINWINDOW_STYLE_LIGHT)
-    {
-        fill.fill(255);
-    }
-    else
-    {
-        fill.fill(0);
-    }
-    glImage = QGLWidget::convertToGLFormat(fill);
-
-    // Now set the other default colors based on the current color scheme.
-    if (newTheme == MainWindow::QGC_MAINWINDOW_STYLE_LIGHT)
-    {
-        defaultColor = QColor(0x01, 0x47, 0x01);
-        setPointColor = QColor(0x82, 0x17, 0x82);
-        warningColor = Qt::darkYellow;
-        criticalColor = Qt::darkRed;
-        infoColor = QColor(0x07, 0x82, 0x07);
-        fuelColor = criticalColor;
-    }
-    else
-    {
-        defaultColor = QColor(70, 200, 70);
-        setPointColor = QColor(200, 20, 200);
-        warningColor = Qt::yellow;
-        criticalColor = Qt::red;
-        infoColor = QColor(20, 200, 20);
-        fuelColor = criticalColor;
-    }
-}
-
 void HUD::showEvent(QShowEvent* event)
 {
     // React only to internal (pre-display)
     // events
-    QWidget::showEvent(event);
+    QGLWidget::showEvent(event);
     refreshTimer->start(updateInterval);
     emit visibilityChanged(true);
 }
@@ -223,7 +209,7 @@ void HUD::hideEvent(QHideEvent* event)
     // React only to internal (pre-display)
     // events
     refreshTimer->stop();
-    QWidget::hideEvent(event);
+    QGLWidget::hideEvent(event);
     emit visibilityChanged(false);
 }
 
@@ -231,14 +217,14 @@ void HUD::contextMenuEvent (QContextMenuEvent* event)
 {
     QMenu menu(this);
     // Update actions
-    enableHUDAction->setChecked(HUDInstrumentsEnabled);
+    enableHUDAction->setChecked(hudInstrumentsEnabled);
     enableVideoAction->setChecked(videoEnabled);
 
     menu.addAction(enableHUDAction);
     //menu.addAction(selectHUDColorAction);
     menu.addAction(enableVideoAction);
     menu.addAction(selectOfflineDirectoryAction);
-    menu.addAction(selectSaveDirectoryAction);
+    //menu.addAction(selectVideoChannelAction);
     menu.exec(event->globalPos());
 }
 
@@ -247,7 +233,7 @@ void HUD::createActions()
     enableHUDAction = new QAction(tr("Enable HUD"), this);
     enableHUDAction->setStatusTip(tr("Show the HUD instruments in this window"));
     enableHUDAction->setCheckable(true);
-    enableHUDAction->setChecked(HUDInstrumentsEnabled);
+    enableHUDAction->setChecked(hudInstrumentsEnabled);
     connect(enableHUDAction, SIGNAL(triggered(bool)), this, SLOT(enableHUDInstruments(bool)));
 
     enableVideoAction = new QAction(tr("Enable Video Live feed"), this);
@@ -256,14 +242,9 @@ void HUD::createActions()
     enableVideoAction->setChecked(videoEnabled);
     connect(enableVideoAction, SIGNAL(triggered(bool)), this, SLOT(enableVideo(bool)));
 
-    selectOfflineDirectoryAction = new QAction(tr("Load image log"), this);
+    selectOfflineDirectoryAction = new QAction(tr("Select image log"), this);
     selectOfflineDirectoryAction->setStatusTip(tr("Load previously logged images into simulation / replay"));
     connect(selectOfflineDirectoryAction, SIGNAL(triggered()), this, SLOT(selectOfflineDirectory()));
-
-    selectSaveDirectoryAction = new QAction(tr("Save images to directory"), this);
-    selectSaveDirectoryAction->setStatusTip(tr("Save images from image stream to a directory"));
-    selectSaveDirectoryAction->setCheckable(true);
-    connect(selectSaveDirectoryAction, SIGNAL(triggered(bool)), this, SLOT(saveImages(bool)));
 }
 
 /**
@@ -274,16 +255,15 @@ void HUD::setActiveUAS(UASInterface* uas)
 {
     if (this->uas != NULL) {
         // Disconnect any previously connected active MAV
-        disconnect(this->uas, SIGNAL(attitudeChanged(UASInterface*, double, double, double, quint64)), this, SLOT(updateAttitude(UASInterface*, double, double, double, quint64)));
-        disconnect(this->uas, SIGNAL(attitudeChanged(UASInterface*,int, double, double, double, quint64)), this, SLOT(updateAttitude(UASInterface*,int,double, double, double, quint64)));
-        disconnect(this->uas, SIGNAL(batteryChanged(UASInterface*, double, double, double, int)), this, SLOT(updateBattery(UASInterface*, double, double, double, int)));
+        disconnect(this->uas, SIGNAL(attitudeChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateAttitude(UASInterface*, double, double, double, quint64)));
+        disconnect(this->uas, SIGNAL(batteryChanged(UASInterface*, double, double, int)), this, SLOT(updateBattery(UASInterface*, double, double, int)));
         disconnect(this->uas, SIGNAL(statusChanged(UASInterface*,QString,QString)), this, SLOT(updateState(UASInterface*,QString)));
         disconnect(this->uas, SIGNAL(modeChanged(int,QString,QString)), this, SLOT(updateMode(int,QString,QString)));
         disconnect(this->uas, SIGNAL(heartbeat(UASInterface*)), this, SLOT(receiveHeartbeat(UASInterface*)));
 
         disconnect(this->uas, SIGNAL(localPositionChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateLocalPosition(UASInterface*,double,double,double,quint64)));
         disconnect(this->uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,quint64)));
-        disconnect(this->uas, SIGNAL(velocityChanged_NEDspeedChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateSpeed(UASInterface*,double,double,double,quint64)));
+        disconnect(this->uas, SIGNAL(speedChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateSpeed(UASInterface*,double,double,double,quint64)));
         disconnect(this->uas, SIGNAL(waypointSelected(int,int)), this, SLOT(selectWaypoint(int, int)));
 
         // Try to disconnect the image link
@@ -298,15 +278,14 @@ void HUD::setActiveUAS(UASInterface* uas)
         // Now connect the new UAS
         // Setup communication
         connect(uas, SIGNAL(attitudeChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateAttitude(UASInterface*, double, double, double, quint64)));
-        connect(uas, SIGNAL(attitudeChanged(UASInterface*,int,double,double,double,quint64)), this, SLOT(updateAttitude(UASInterface*,int,double, double, double, quint64)));
-        connect(uas, SIGNAL(batteryChanged(UASInterface*, double, double, double, int)), this, SLOT(updateBattery(UASInterface*, double, double, double, int)));
+        connect(uas, SIGNAL(batteryChanged(UASInterface*, double, double, int)), this, SLOT(updateBattery(UASInterface*, double, double, int)));
         connect(uas, SIGNAL(statusChanged(UASInterface*,QString,QString)), this, SLOT(updateState(UASInterface*,QString)));
         connect(uas, SIGNAL(modeChanged(int,QString,QString)), this, SLOT(updateMode(int,QString,QString)));
         connect(uas, SIGNAL(heartbeat(UASInterface*)), this, SLOT(receiveHeartbeat(UASInterface*)));
 
         connect(uas, SIGNAL(localPositionChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateLocalPosition(UASInterface*,double,double,double,quint64)));
         connect(uas, SIGNAL(globalPositionChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateGlobalPosition(UASInterface*,double,double,double,quint64)));
-        connect(uas, SIGNAL(velocityChanged_NED(UASInterface*,double,double,double,quint64)), this, SLOT(updateSpeed(UASInterface*,double,double,double,quint64)));
+        connect(uas, SIGNAL(speedChanged(UASInterface*,double,double,double,quint64)), this, SLOT(updateSpeed(UASInterface*,double,double,double,quint64)));
         connect(uas, SIGNAL(waypointSelected(int,int)), this, SLOT(selectWaypoint(int, int)));
 
         // Try to connect the image link
@@ -315,10 +294,10 @@ void HUD::setActiveUAS(UASInterface* uas)
             connect(u, SIGNAL(imageStarted(quint64)), this, SLOT(startImage(quint64)));
             connect(u, SIGNAL(imageReady(UASInterface*)), this, SLOT(copyImage()));
         }
-    }
 
-    // Set new UAS
-    this->uas = uas;
+        // Set new UAS
+        this->uas = uas;
+    }
 }
 
 //void HUD::updateAttitudeThrustSetPoint(UASInterface* uas, double rollDesired, double pitchDesired, double yawDesired, double thrustDesired, quint64 msec)
@@ -333,30 +312,15 @@ void HUD::updateAttitude(UASInterface* uas, double roll, double pitch, double ya
 {
     Q_UNUSED(uas);
     Q_UNUSED(timestamp);
-    if (!isnan(roll) && !isinf(roll) && !isnan(pitch) && !isinf(pitch) && !isnan(yaw) && !isinf(yaw))
-    {
-        this->roll = roll;
-        this->pitch = pitch*3.35f; // Constant here is the 'focal length' of the projection onto the plane
-        this->yaw = yaw;
-    }
+    this->roll = roll;
+    this->pitch = pitch;
+    this->yaw = yaw;
 }
 
-void HUD::updateAttitude(UASInterface* uas, int component, double roll, double pitch, double yaw, quint64 timestamp)
+void HUD::updateBattery(UASInterface* uas, double voltage, double percent, int seconds)
 {
     Q_UNUSED(uas);
-    Q_UNUSED(timestamp);
-    if (!isnan(roll) && !isinf(roll) && !isnan(pitch) && !isinf(pitch) && !isnan(yaw) && !isinf(yaw))
-    {
-        attitudes.insert(component, QVector3D(roll, pitch*3.35f, yaw)); // Constant here is the 'focal length' of the projection onto the plane
-    }
-}
-
-void HUD::updateBattery(UASInterface* uas, double voltage, double current, double percent, int seconds)
-{
-    Q_UNUSED(uas);
-    Q_UNUSED(seconds);
-    Q_UNUSED(current);
-    fuelStatus = tr("BAT [%1% | %2V]").arg(percent, 2, 'f', 0, QChar('0')).arg(voltage, 4, 'f', 1, QChar('0'));
+    fuelStatus = tr("BAT [%1% | %2V] (%3:%4)").arg(percent, 2, 'f', 0, QChar('0')).arg(voltage, 4, 'f', 1, QChar('0')).arg(seconds/60, 2, 10, QChar('0')).arg(seconds%60, 2, 10, QChar('0'));
     if (percent < 20.0f) {
         fuelColor = warningColor;
     } else if (percent < 10.0f) {
@@ -447,7 +411,7 @@ void HUD::updateLoad(UASInterface* uas, double load)
  */
 float HUD::refToScreenX(float x)
 {
-    //qDebug() << "sX: " << (scalingFactor * x) << "Orig:" << x;
+    //qDebug() << "sX: " << (scalingFactor * x);
     return (scalingFactor * x);
 }
 /**
@@ -458,6 +422,71 @@ float HUD::refToScreenY(float y)
 {
     //qDebug() << "sY: " << (scalingFactor * y);
     return (scalingFactor * y);
+}
+
+/**
+ * This functions works in the OpenGL view, which is already translated by
+ * the x and y center offsets.
+ *
+ */
+void HUD::paintCenterBackground(float roll, float pitch, float yaw)
+{
+    // Center indicator is 100 mm wide
+    float referenceWidth = 70.0;
+    float referenceHeight = 70.0;
+
+    // HUD is assumed to be 200 x 150 mm
+    // so that positions can be hardcoded
+    // but can of course be scaled.
+
+    double referencePositionX = vwidth / 2.0 - referenceWidth/2.0;
+    double referencePositionY = vheight / 2.0 - referenceHeight/2.0;
+
+    //this->width()/2.0+(xCenterOffset*scalingFactor), this->height()/2.0+(yCenterOffset*scalingFactor);
+
+    setupGLView(referencePositionX, referencePositionY, referenceWidth, referenceHeight);
+
+    // Store current position in the model view
+    // the position will be restored after drawing
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+
+    // Move to the center of the window
+    glTranslatef(referenceWidth/2.0f,referenceHeight/2.0f,0);
+
+    // Move based on the yaw difference
+    glTranslatef(yaw, 0.0f, 0.0f);
+
+    // Rotate based on the bank
+    glRotatef((roll/M_PI)*180.0f, 0.0f, 0.0f, 1.0f);
+
+    // Translate in the direction of the rotation based
+    // on the pitch. On the 777, a pitch of 1 degree = 2 mm
+    //glTranslatef(0, ((-pitch/M_PI)*180.0f * vPitchPerDeg), 0);
+    glTranslatef(0.0f, (-pitch * vPitchPerDeg * 16.5f), 0.0f);
+
+    // Ground
+    glColor3ub(179,102,0);
+
+    glBegin(GL_POLYGON);
+    glVertex2f(-300,-300);
+    glVertex2f(-300,0);
+    glVertex2f(300,0);
+    glVertex2f(300,-300);
+    glVertex2f(-300,-300);
+    glEnd();
+
+    // Sky
+    glColor3ub(0,153,204);
+
+    glBegin(GL_POLYGON);
+    glVertex2f(-300,0);
+    glVertex2f(-300,300);
+    glVertex2f(300,300);
+    glVertex2f(300,0);
+    glVertex2f(-300,0);
+
+    glEnd();
 }
 
 /**
@@ -493,6 +522,29 @@ void HUD::paintText(QString text, QColor color, float fontSize, float refX, floa
     painter->setPen(prevPen);
 }
 
+void HUD::initializeGL()
+{
+    bool antialiasing = true;
+
+    // Antialiasing setup
+    if(antialiasing) {
+        glEnable(GL_MULTISAMPLE);
+        glEnable(GL_BLEND);
+
+        glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+
+        glEnable(GL_POINT_SMOOTH);
+        glEnable(GL_LINE_SMOOTH);
+
+        glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    } else {
+        glDisable(GL_BLEND);
+        glDisable(GL_POINT_SMOOTH);
+        glDisable(GL_LINE_SMOOTH);
+    }
+}
+
 /**
  * @param referencePositionX horizontal position in the reference mm-unit space
  * @param referencePositionY horizontal position in the reference mm-unit space
@@ -506,6 +558,23 @@ void HUD::setupGLView(float referencePositionX, float referencePositionY, float 
     // Translate and scale the GL view in the virtual reference coordinate units on the screen
     int pixelPositionX = (int)((referencePositionX * scalingFactor) + xCenterOffset);
     int pixelPositionY = this->height() - (referencePositionY * scalingFactor) + yCenterOffset - pixelHeight;
+
+    //qDebug() << "Pixel x" << pixelPositionX << "pixelY" << pixelPositionY;
+    //qDebug() << "xCenterOffset:" << xCenterOffset << "yCenterOffest" << yCenterOffset
+
+
+    //The viewport is established at the correct pixel position and clips everything
+    // out of the desired instrument location
+    glViewport(pixelPositionX, pixelPositionY, pixelWidth, pixelHeight);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    // The ortho projection is setup in a way that so that the drawing is done in the
+    // reference coordinate space
+    glOrtho(0, referenceWidth, 0, referenceHeight, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    //glScalef(scaleX, scaleY, 1.0f);
 }
 
 void HUD::paintRollPitchStrips()
@@ -515,8 +584,10 @@ void HUD::paintRollPitchStrips()
 
 void HUD::paintEvent(QPaintEvent *event)
 {
-
-    paintHUD();
+    // Event is not needed
+    // the event is ignored as this widget
+    // is refreshed automatically
+    Q_UNUSED(event);
 }
 
 void HUD::paintHUD()
@@ -532,9 +603,9 @@ void HUD::paintHUD()
 
         // Read out most important values to limit hash table lookups
         // Low-pass roll, pitch and yaw
-        rollLP = roll;//rollLP * 0.2f + 0.8f * roll;
-        pitchLP = pitch;//pitchLP * 0.2f + 0.8f * pitch;
-        yawLP = (!isinf(yaw) && !isnan(yaw)) ? yaw : yawLP;//yawLP * 0.2f + 0.8f * yaw;
+        rollLP = rollLP * 0.2f + 0.8f * roll;
+        pitchLP = pitchLP * 0.2f + 0.8f * pitch;
+        yawLP = yawLP * 0.2f + 0.8f * yaw;
 
         // Translate for yaw
         const float maxYawTrans = 60.0f;
@@ -562,8 +633,6 @@ void HUD::paintHUD()
         // Negate to correct direction
         yawTrans = -yawTrans;
 
-        yawTrans = 0;
-
         //qDebug() << "yaw translation" << yawTrans << "integral" << yawInt << "difference" << yawDiff << "yaw" << yaw;
 
         // Update scaling factor
@@ -571,13 +640,23 @@ void HUD::paintHUD()
         scalingFactor = this->width()/vwidth;
         double scalingFactorH = this->height()/vheight;
         if (scalingFactorH < scalingFactor) scalingFactor = scalingFactorH;
+
+
+
+        // OPEN GL PAINTING
+        // Store model view matrix to be able to reset it to the previous state
+        makeCurrent();
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         // Fill with black background
         if (videoEnabled) {
             if (nextOfflineImage != "" && QFileInfo(nextOfflineImage).exists()) {
                 qDebug() << __FILE__ << __LINE__ << "template image:" << nextOfflineImage;
                 QImage fill = QImage(nextOfflineImage);
 
-                glImage = fill;
+                glImage = QGLWidget::convertToGLFormat(fill);
 
                 // Reset to save load efforts
                 nextOfflineImage = "";
@@ -585,50 +664,53 @@ void HUD::paintHUD()
 
         }
 
-        // And if either video or the data stream is enabled, draw the next frame.
         if (dataStreamEnabled || videoEnabled)
         {
+            glRasterPos2i(0, 0);
 
             xImageFactor = width() / (float)glImage.width();
             yImageFactor = height() / (float)glImage.height();
             float imageFactor = qMin(xImageFactor, yImageFactor);
+            glPixelZoom(imageFactor, imageFactor);
             // Resize to correct size and fill with image
-            // FIXME
-
+            glDrawPixels(glImage.width(), glImage.height(), GL_RGBA, GL_UNSIGNED_BYTE, glImage.bits());
+            //qDebug() << "DRAWING GL IMAGE";
+        } else {
+            // Blue / brown background
+            paintCenterBackground(roll, pitch, yawTrans);
         }
 
-        QPainter painter;
-        painter.begin(this);
-        painter.setRenderHint(QPainter::Antialiasing, true);
-        painter.setRenderHint(QPainter::HighQualityAntialiasing, true);
-        QPixmap pmap = QPixmap::fromImage(glImage).scaledToWidth(width());
-        painter.drawPixmap(0, (height() - pmap.height()) / 2, pmap);
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
 
         // END OF OPENGL PAINTING
 
-        if (HUDInstrumentsEnabled)
-        {
+        if (hudInstrumentsEnabled) {
 
             //glEnable(GL_MULTISAMPLE);
 
             // QT PAINTING
             //makeCurrent();
-
+            QPainter painter;
+            painter.begin(this);
+            painter.setRenderHint(QPainter::Antialiasing, true);
+            painter.setRenderHint(QPainter::HighQualityAntialiasing, true);
             painter.translate((this->vwidth/2.0+xCenterOffset)*scalingFactor, (this->vheight/2.0+yCenterOffset)*scalingFactor);
+
+
 
             // COORDINATE FRAME IS NOW (0,0) at CENTER OF WIDGET
 
-            // Draw all fixed indicators
-            // BATTERY
-            paintText(fuelStatus, fuelColor, 6.0f, (-vwidth/2.0) + 10, -vheight/2.0 + 6, &painter);
-            // Waypoint
-            paintText(waypointName, defaultColor, 6.0f, (-vwidth/3.0) + 10, +vheight/3.0 + 15, &painter);
 
-            QPen linePen(Qt::SolidLine);
-            linePen.setWidth(refLineWidthToPen(1.0f));
-            linePen.setColor(defaultColor);
-            painter.setBrush(Qt::NoBrush);
-            painter.setPen(linePen);
+            // Draw all fixed indicators
+            // MODE
+            paintText(mode, infoColor, 2.0f, (-vwidth/2.0) + 10, -vheight/2.0 + 10, &painter);
+            // STATE
+            paintText(state, infoColor, 2.0f, (-vwidth/2.0) + 10, -vheight/2.0 + 15, &painter);
+            // BATTERY
+            paintText(fuelStatus, fuelColor, 2.0f, (-vwidth/2.0) + 10, -vheight/2.0 + 20, &painter);
+            // Waypoint
+            paintText(waypointName, defaultColor, 2.0f, (-vwidth/3.0) + 10, +vheight/3.0 + 15, &painter);
 
             // YAW INDICATOR
             //
@@ -636,15 +718,15 @@ void HUD::paintHUD()
             //    .   .
             //   .......
             //
-            const float yawIndicatorWidth = 12.0f;
-            const float yawIndicatorY = vheight/2.0f - 15.0f;
+            const float yawIndicatorWidth = 4.0f;
+            const float yawIndicatorY = vheight/2.0f - 10.0f;
             QPolygon yawIndicator(4);
             yawIndicator.setPoint(0, QPoint(refToScreenX(0.0f), refToScreenY(yawIndicatorY)));
             yawIndicator.setPoint(1, QPoint(refToScreenX(yawIndicatorWidth/2.0f), refToScreenY(yawIndicatorY+yawIndicatorWidth)));
             yawIndicator.setPoint(2, QPoint(refToScreenX(-yawIndicatorWidth/2.0f), refToScreenY(yawIndicatorY+yawIndicatorWidth)));
             yawIndicator.setPoint(3, QPoint(refToScreenX(0.0f), refToScreenY(yawIndicatorY)));
+            painter.setPen(defaultColor);
             painter.drawPolyline(yawIndicator);
-            painter.setPen(linePen);
 
             // CENTER
 
@@ -653,7 +735,7 @@ void HUD::paintHUD()
             //    __      __
             //       \/\/
             //
-            const float hIndicatorWidth = 20.0f;
+            const float hIndicatorWidth = 7.0f;
             const float hIndicatorY = -25.0f;
             const float hIndicatorYLow = hIndicatorY + hIndicatorWidth / 6.0f;
             const float hIndicatorSegmentWidth = hIndicatorWidth / 7.0f;
@@ -665,15 +747,18 @@ void HUD::paintHUD()
             hIndicator.setPoint(4, QPoint(refToScreenX(0.0f+hIndicatorSegmentWidth*1.0f), refToScreenY(hIndicatorYLow)));
             hIndicator.setPoint(5, QPoint(refToScreenX(0.0f+hIndicatorWidth/2.0f-hIndicatorSegmentWidth*1.75f), refToScreenY(hIndicatorY)));
             hIndicator.setPoint(6, QPoint(refToScreenX(0.0f+hIndicatorWidth/2.0f), refToScreenY(hIndicatorY)));
+            painter.setPen(defaultColor);
             painter.drawPolyline(hIndicator);
 
 
             // SETPOINT
-            const float centerWidth = 8.0f;
+            const float centerWidth = 4.0f;
+            painter.setPen(defaultColor);
+            painter.setBrush(Qt::NoBrush);
             // TODO
             //painter.drawEllipse(QPointF(refToScreenX(qMin(10.0f, values.value("roll desired", 0.0f) * 10.0f)), refToScreenY(qMin(10.0f, values.value("pitch desired", 0.0f) * 10.0f))), refToScreenX(centerWidth/2.0f), refToScreenX(centerWidth/2.0f));
 
-            const float centerCrossWidth = 20.0f;
+            const float centerCrossWidth = 10.0f;
             // left
             painter.drawLine(QPointF(refToScreenX(-centerWidth / 2.0f), refToScreenY(0.0f)), QPointF(refToScreenX(-centerCrossWidth / 2.0f), refToScreenY(0.0f)));
             // right
@@ -684,32 +769,27 @@ void HUD::paintHUD()
 
 
             // COMPASS
-            const float compassY = -vheight/2.0f + 6.0f;
-            QRectF compassRect(QPointF(refToScreenX(-12.0f), refToScreenY(compassY)), QSizeF(refToScreenX(24.0f), refToScreenY(12.0f)));
+            const float compassY = -vheight/2.0f + 10.0f;
+            QRectF compassRect(QPointF(refToScreenX(-5.0f), refToScreenY(compassY)), QSizeF(refToScreenX(10.0f), refToScreenY(5.0f)));
             painter.setBrush(Qt::NoBrush);
-            painter.setPen(linePen);
-            painter.drawRoundedRect(compassRect, 3, 3);
+            painter.setPen(Qt::SolidLine);
+            painter.setPen(defaultColor);
+            painter.drawRoundedRect(compassRect, 2, 2);
             QString yawAngle;
 
             //    const float yawDeg = ((values.value("yaw", 0.0f)/M_PI)*180.0f)+180.f;
 
-            // YAW is in compass-human readable format, so 0 .. 360 deg.
-            float yawDeg = (yawLP / M_PI) * 180.0f;
-            if (yawDeg < 0) yawDeg += 360;
-            if (yawDeg > 360) yawDeg -= 360;
-            /* final safeguard for really stupid systems */
+            // YAW is in compass-human readable format, so 0 - 360deg. This is normal in aviation, not -180 - +180.
+            const float yawDeg = ((yawLP/M_PI)*180.0f)+180.0f+180.0f;
             int yawCompass = static_cast<int>(yawDeg) % 360;
             yawAngle.sprintf("%03d", yawCompass);
-            paintText(yawAngle, defaultColor,8.5f, -9.8f, compassY+ 1.7f, &painter);
-
-            painter.setBrush(Qt::NoBrush);
-            painter.setPen(linePen);
+            paintText(yawAngle, defaultColor, 3.5f, -4.3f, compassY+ 0.97f, &painter);
 
             // CHANGE RATE STRIPS
-            drawChangeRateStrip(-95.0f, -60.0f, 40.0f, -10.0f, 10.0f, -zSpeed, &painter);
+            drawChangeRateStrip(-51.0f, -50.0f, 15.0f, -1.0f, 1.0f, -zSpeed, &painter);
 
             // CHANGE RATE STRIPS
-            drawChangeRateStrip(95.0f, -60.0f, 40.0f, -10.0f, 10.0f, totalAcc, &painter,true);
+            drawChangeRateStrip(49.0f, -50.0f, 15.0f, -1.0f, 1.0f, totalAcc, &painter);
 
             // GAUGES
 
@@ -722,15 +802,10 @@ void HUD::paintHUD()
                 gaugeAltitude = -zPos;
             }
 
-            painter.setBrush(Qt::NoBrush);
-            painter.setPen(linePen);
-
-            drawChangeIndicatorGauge(-vGaugeSpacing, 35.0f, 15.0f, 10.0f, gaugeAltitude, defaultColor, &painter, false);
-            paintText("alt m", defaultColor, 5.5f, -73.0f, 50, &painter);
+            drawChangeIndicatorGauge(-vGaugeSpacing, -15.0f, 10.0f, 2.0f, gaugeAltitude, defaultColor, &painter, false);
 
             // Right speed gauge
-            drawChangeIndicatorGauge(vGaugeSpacing, 35.0f, 15.0f, 10.0f, totalSpeed, defaultColor, &painter, false);
-            paintText("v m/s", defaultColor, 5.5f, 55.0f, 50, &painter);
+            drawChangeIndicatorGauge(vGaugeSpacing, -15.0f, 10.0f, 5.0f, totalSpeed, defaultColor, &painter, false);
 
 
             // Waypoint name
@@ -741,45 +816,28 @@ void HUD::paintHUD()
 
             painter.translate(refToScreenX(yawTrans), 0);
 
-            // Old single-component pitch drawing
-//            // Rotate view and draw all roll-dependent indicators
-//            painter.rotate((rollLP/M_PI)* -180.0f);
+            // Rotate view and draw all roll-dependent indicators
+            painter.rotate((rollLP/M_PI)* -180.0f);
 
-//            painter.translate(0, (-pitchLP/(float)M_PI)* -180.0f * refToScreenY(1.8f));
+            painter.translate(0, (-pitchLP/(float)M_PI)* -180.0f * refToScreenY(1.8f));
 
-//            //qDebug() << "ROLL" << roll << "PITCH" << pitch << "YAW DIFF" << valuesDot.value("roll", 0.0f);
+            //qDebug() << "ROLL" << roll << "PITCH" << pitch << "YAW DIFF" << valuesDot.value("roll", 0.0f);
 
-//            // PITCH
+            // PITCH
 
-//            paintPitchLines(pitchLP, &painter);
-
-            QColor attColor = painter.pen().color();
-
-            // Draw multi-component attitude
-            foreach (QVector3D att, attitudes.values())
-            {
-                attColor = attColor.darker(200);
-                painter.setPen(attColor);
-                // Rotate view and draw all roll-dependent indicators
-                painter.rotate((att.x()/M_PI)* -180.0f);
-
-                painter.translate(0, (-att.y()/(float)M_PI)* -180.0f * refToScreenY(1.8f));
-
-                //qDebug() << "ROLL" << roll << "PITCH" << pitch << "YAW DIFF" << valuesDot.value("roll", 0.0f);
-
-                // PITCH
-
-                paintPitchLines(att.y(), &painter);
-                painter.translate(0, -(-att.y()/(float)M_PI)* -180.0f * refToScreenY(1.8f));
-                painter.rotate(-(att.x()/M_PI)* -180.0f);
-            }
-
-
+            paintPitchLines(pitchLP, &painter);
+            painter.end();
+        } else {
+            QPainter painter;
+            painter.begin(this);
+            painter.end();
         }
+        //glDisable(GL_MULTISAMPLE);
 
-        painter.end();
+
+
+        //glFlush();
     }
-
 }
 
 
@@ -794,7 +852,7 @@ void HUD::paintPitchLines(float pitch, QPainter* painter)
     const float lineDistance = 5.0f; ///< One pitch line every 10 degrees
     const float posIncrement = yDeg * lineDistance;
     float posY = posIncrement;
-    const float posLimit = sqrt(pow(vwidth, 2.0f) + pow(vheight, 2.0f))*3.0f;
+    const float posLimit = sqrt(pow(vwidth, 2.0f) + pow(vheight, 2.0f));
 
     const float offsetAbs = pitch * yDeg;
 
@@ -860,8 +918,8 @@ void HUD::paintPitchLinePos(QString text, float refPosX, float refPosY, QPainter
     const float pitchWidth = 30.0f;
     const float pitchGap = pitchWidth / 2.5f;
     const float pitchHeight = pitchWidth / 12.0f;
-    const float textSize = pitchHeight * 1.6f;
-    const float lineWidth = 1.5f;
+    const float textSize = pitchHeight * 1.1f;
+    const float lineWidth = 0.5f;
 
     // Positive pitch indicator:
     //
@@ -874,7 +932,7 @@ void HUD::paintPitchLinePos(QString text, float refPosX, float refPosY, QPainter
     // Left horizontal line
     drawLine(refPosX-pitchWidth/2.0f, refPosY, refPosX-pitchGap/2.0f, refPosY, lineWidth, defaultColor, painter);
     // Text left
-    paintText(text, defaultColor, textSize, refPosX-pitchWidth/2.0 + 0.75f, refPosY + pitchHeight - 1.3f, painter);
+    paintText(text, defaultColor, textSize, refPosX-pitchWidth/2.0 + 0.75f, refPosY + pitchHeight - 1.75f, painter);
 
     // Right vertical line
     drawLine(refPosX+pitchWidth/2.0f, refPosY, refPosX+pitchWidth/2.0f, refPosY+pitchHeight, lineWidth, defaultColor, painter);
@@ -887,10 +945,10 @@ void HUD::paintPitchLineNeg(QString text, float refPosX, float refPosY, QPainter
     const float pitchWidth = 30.0f;
     const float pitchGap = pitchWidth / 2.5f;
     const float pitchHeight = pitchWidth / 12.0f;
-    const float textSize = pitchHeight * 1.6f;
+    const float textSize = pitchHeight * 1.1f;
     const float segmentWidth = ((pitchWidth - pitchGap)/2.0f) / 7.0f; ///< Four lines and three gaps -> 7 segments
 
-    const float lineWidth = 1.5f;
+    const float lineWidth = 0.1f;
 
     // Negative pitch indicator:
     //
@@ -906,7 +964,7 @@ void HUD::paintPitchLineNeg(QString text, float refPosX, float refPosY, QPainter
         drawLine(refPosX-pitchWidth/2.0+(i*segmentWidth), refPosY, refPosX-pitchWidth/2.0+(i*segmentWidth)+segmentWidth, refPosY, lineWidth, defaultColor, painter);
     }
     // Text left
-    paintText(text, defaultColor, textSize, refPosX-pitchWidth/2.0f + 0.75f, refPosY + pitchHeight - 1.3f, painter);
+    paintText(text, defaultColor, textSize, refPosX-pitchWidth/2.0f + 0.75f, refPosY + pitchHeight - 1.75f, painter);
 
     // Right vertical line
     drawLine(refPosX+pitchGap/2.0, refPosY, refPosX+pitchGap/2.0, refPosY-pitchHeight, lineWidth, defaultColor, painter);
@@ -977,8 +1035,15 @@ void HUD::drawPolygon(QPolygonF refPolygon, QPainter* painter)
     painter->drawPolygon(draw);
 }
 
-void HUD::drawChangeRateStrip(float xRef, float yRef, float height, float minRate, float maxRate, float value, QPainter* painter,bool reverse)
+void HUD::drawChangeRateStrip(float xRef, float yRef, float height, float minRate, float maxRate, float value, QPainter* painter)
 {
+    QBrush brush(defaultColor, Qt::NoBrush);
+    painter->setBrush(brush);
+    QPen rectPen(Qt::SolidLine);
+    rectPen.setWidth(0);
+    rectPen.setColor(defaultColor);
+    painter->setPen(rectPen);
+
     float scaledValue = value;
 
     // Saturate value
@@ -997,47 +1062,22 @@ void HUD::drawChangeRateStrip(float xRef, float yRef, float height, float minRat
     //           -
 
     const float width = height / 8.0f;
-    const float lineWidth = 1.5f;
+    const float lineWidth = 0.5f;
 
     // Indicator lines
     // Top horizontal line
-    if (reverse)
-    {
-        drawLine(xRef, yRef, xRef-width, yRef, lineWidth, defaultColor, painter);
-        // Vertical main line
-        drawLine(xRef-width/2.0f, yRef, xRef-width/2.0f, yRef+height, lineWidth, defaultColor, painter);
-        // Zero mark
-        drawLine(xRef, yRef+height/2.0f, xRef-width, yRef+height/2.0f, lineWidth, defaultColor, painter);
-        // Horizontal bottom line
-        drawLine(xRef, yRef+height, xRef-width, yRef+height, lineWidth, defaultColor, painter);
+    drawLine(xRef, yRef, xRef+width, yRef, lineWidth, defaultColor, painter);
+    // Vertical main line
+    drawLine(xRef+width/2.0f, yRef, xRef+width/2.0f, yRef+height, lineWidth, defaultColor, painter);
+    // Zero mark
+    drawLine(xRef, yRef+height/2.0f, xRef+width, yRef+height/2.0f, lineWidth, defaultColor, painter);
+    // Horizontal bottom line
+    drawLine(xRef, yRef+height, xRef+width, yRef+height, lineWidth, defaultColor, painter);
 
-        // Text
-        QString label;
-        label.sprintf("%+06.2f >", value);
-
-        QFont font("Bitstream Vera Sans");
-        // Enforce minimum font size of 5 pixels
-        //int fSize = qMax(5, (int)(6.0f*scalingFactor*1.26f));
-        font.setPixelSize(6.0f * 1.26f);
-
-        QFontMetrics metrics = QFontMetrics(font);
-        paintText(label, defaultColor, 6.0f, (xRef-width) - metrics.width(label), yRef+height-((scaledValue - minRate)/(maxRate-minRate))*height - 1.6f, painter);
-    }
-    else
-    {
-        drawLine(xRef, yRef, xRef+width, yRef, lineWidth, defaultColor, painter);
-        // Vertical main line
-        drawLine(xRef+width/2.0f, yRef, xRef+width/2.0f, yRef+height, lineWidth, defaultColor, painter);
-        // Zero mark
-        drawLine(xRef, yRef+height/2.0f, xRef+width, yRef+height/2.0f, lineWidth, defaultColor, painter);
-        // Horizontal bottom line
-        drawLine(xRef, yRef+height, xRef+width, yRef+height, lineWidth, defaultColor, painter);
-
-        // Text
-        QString label;
-        label.sprintf("< %+06.2f", value);
-        paintText(label, defaultColor, 6.0f, xRef+width/2.0f, yRef+height-((scaledValue - minRate)/(maxRate-minRate))*height - 1.6f, painter);
-    }
+    // Text
+    QString label;
+    label.sprintf("< %+06.2f", value);
+    paintText(label, defaultColor, 3.0f, xRef+width/2.0f, yRef+height-((scaledValue - minRate)/(maxRate-minRate))*height - 1.6f, painter);
 }
 
 //void HUD::drawSystemIndicator(float xRef, float yRef, int maxNum, float maxWidth, float maxHeight, QPainter* painter)
@@ -1122,19 +1162,17 @@ void HUD::drawChangeIndicatorGauge(float xRef, float yRef, float radius, float e
     // Draw the circle
     QPen circlePen(Qt::SolidLine);
     if (!solid) circlePen.setStyle(Qt::DotLine);
+    circlePen.setWidth(refLineWidthToPen(0.5f));
     circlePen.setColor(defaultColor);
-    circlePen.setWidth(refLineWidthToPen(2.0f));
     painter->setBrush(Qt::NoBrush);
     painter->setPen(circlePen);
-    drawCircle(xRef, yRef, radius, 200.0f, 170.0f, 1.5f, color, painter);
+    drawCircle(xRef, yRef, radius, 200.0f, 170.0f, 1.0f, color, painter);
 
     QString label;
     label.sprintf("%05.1f", value);
 
-    float textSize = radius / 2.5;
-
     // Draw the value
-    paintText(label, color, textSize, xRef-textSize*1.7f, yRef-textSize*0.4f, painter);
+    paintText(label, color, 4.5f, xRef-7.5f, yRef-2.0f, painter);
 
     // Draw the needle
     // Scale the rotation so that the gauge does one revolution
@@ -1188,6 +1226,18 @@ void HUD::drawCircle(float refX, float refY, float radius, float startDeg, float
     drawEllipse(refX, refY, radius, radius, startDeg, endDeg, lineWidth, color, painter);
 }
 
+void HUD::resizeGL(int w, int h)
+{
+    glViewport(0, 0, w, h);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, w, 0, h, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPolygonMode(GL_FRONT, GL_FILL);
+    //FIXME
+    paintHUD();
+}
+
 void HUD::selectWaypoint(int uasId, int id)
 {
     Q_UNUSED(uasId);
@@ -1214,8 +1264,7 @@ void HUD::setImageSize(int width, int height, int depth, int channels)
         rawBuffer1 = (unsigned char*)malloc(rawExpectedBytes);
         rawBuffer2 = (unsigned char*)malloc(rawExpectedBytes);
         rawImage = rawBuffer1;
-        if (image)
-            delete image;
+        // TODO check if old image should be deleted
 
         // Set image format
         // 8 BIT GREYSCALE IMAGE
@@ -1235,15 +1284,8 @@ void HUD::setImageSize(int width, int height, int depth, int channels)
         }
 
         // Fill first channel of image with black pixels
-        if (MainWindow::instance()->getStyle() == MainWindow::QGC_MAINWINDOW_STYLE_LIGHT)
-        {
-            image->fill(255);
-        }
-        else
-        {
-            image->fill(0);
-        }
-        glImage = *image;
+        image->fill(0);
+        glImage = QGLWidget::convertToGLFormat(*image);
 
         qDebug() << __FILE__ << __LINE__ << "Setting up image";
 
@@ -1294,7 +1336,7 @@ void HUD::commitRawDataToGL()
             }
         }
 
-        glImage = *newImage;
+        glImage = QGLWidget::convertToGLFormat(*newImage);
         delete image;
         image = newImage;
         // Switch buffers
@@ -1339,7 +1381,7 @@ void HUD::selectOfflineDirectory()
 
 void HUD::enableHUDInstruments(bool enabled)
 {
-    HUDInstrumentsEnabled = enabled;
+    hudInstrumentsEnabled = enabled;
 }
 
 void HUD::enableVideo(bool enabled)
@@ -1389,47 +1431,13 @@ void HUD::setPixels(int imgid, const unsigned char* imageData, int length, int s
 
 void HUD::copyImage()
 {
-    UAS* u = dynamic_cast<UAS*>(this->uas);
-    if (u)
+    if (isVisible())
     {
-        this->glImage = u->getImage();
-
-        // Save to directory if logging is enabled
-        if (imageLoggingEnabled)
+        qDebug() << "HUD::copyImage()";
+        UAS* u = dynamic_cast<UAS*>(this->uas);
+        if (u)
         {
-            u->getImage().save(QString("%1/%2.png").arg(imageLogDirectory).arg(imageLogCounter));
-            imageLogCounter++;
+            this->glImage = QGLWidget::convertToGLFormat(u->getImage());
         }
     }
-}
-
-void HUD::saveImages(bool save)
-{
-    if (save)
-    {
-        QFileDialog dialog(this);
-        dialog.setFileMode(QFileDialog::DirectoryOnly);
-
-        imageLogDirectory = QFileDialog::getExistingDirectory(this, tr("Select image log directory"), QDesktopServices::storageLocation(QDesktopServices::DesktopLocation));
-
-        qDebug() << "Logging to:" << imageLogDirectory;
-
-        if (imageLogDirectory != "")
-        {
-            imageLogCounter = 0;
-            imageLoggingEnabled = true;
-            qDebug() << "Logging on";
-        }
-        else
-        {
-            imageLoggingEnabled = false;
-            selectSaveDirectoryAction->setChecked(false);
-        }
-    }
-    else
-    {
-        imageLoggingEnabled = false;
-        selectSaveDirectoryAction->setChecked(false);
-    }
-
 }

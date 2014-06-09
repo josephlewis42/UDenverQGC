@@ -91,11 +91,16 @@ public slots:
 	void displayVelocityError(int type, QVector<float> error);
 
 
+
+
 protected:
     int uas;              ///< Reference to the current uas
 
 private:
     Ui::UAlbertaControlWidget ui;
+
+    /// get the velocity position string from the error type
+    QString getStrVelocityPositionErr(int type);
 
 };
 

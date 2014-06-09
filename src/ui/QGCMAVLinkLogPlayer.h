@@ -37,14 +37,6 @@ public:
         return logFile.isOpen();
     }
 
-    /**
-     * @brief Set the last log file name
-     * @param filename
-     */
-    void setLastLogFile(const QString& filename) {
-        lastLogDirectory = filename;
-    }
-
 public slots:
     /** @brief Toggle between play and pause */
     void playPauseToggle();
@@ -56,8 +48,6 @@ public slots:
     void pause();
     /** @brief Reset the logfile */
     bool reset(int packetIndex=0);
-    /** @brief Select logfile */
-    bool selectLogFile(const QString startDirectory);
     /** @brief Select logfile */
     bool selectLogFile();
     /** @brief Load log file */
@@ -91,15 +81,10 @@ protected:
     unsigned int currPacketCount;
     static const int packetLen = MAVLINK_MAX_PACKET_LEN;
     static const int timeLen = sizeof(quint64);
-    QString lastLogDirectory;
     void changeEvent(QEvent *e);
-
-    void loadSettings();
-    void storeSettings();
 
 private:
     Ui::QGCMAVLinkLogPlayer *ui;
-	virtual void paintEvent(QPaintEvent *);
 };
 
 #endif // QGCMAVLINKLOGPLAYER_H

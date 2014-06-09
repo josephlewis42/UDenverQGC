@@ -63,63 +63,64 @@ void Linecharts::hideEvent(QHideEvent* event)
 
 void Linecharts::selectSystem(int systemid)
 {
-	Q_UNUSED(systemid);
-//    QWidget* prevWidget = currentWidget();
-//    if (prevWidget)
-//    {
-//        LinechartWidget* chart = dynamic_cast<LinechartWidget*>(prevWidget);
-//        if (chart)
-//        {
-//            chart->setActive(false);
-//            chart->setActiveSystem(systemid);
-//        }
-//    }
-//    QWidget* widget = plots.value(systemid, NULL);
-//    if (widget)
-//    {
-//        setCurrentWidget(widget);
-//        LinechartWidget* chart = dynamic_cast<LinechartWidget*>(widget);
-//        if (chart)
-//        {
-//            chart->setActive(true);
-//            chart->setActiveSystem(systemid);
-//        }
-//    }
+    QWidget* prevWidget = currentWidget();
+    if (prevWidget)
+    {
+        LinechartWidget* chart = dynamic_cast<LinechartWidget*>(prevWidget);
+        if (chart)
+        {
+            chart->setActive(false);
+            chart->setActiveSystem(systemid);
+        }
+    }
+    QWidget* widget = plots.value(systemid, NULL);
+    if (widget)
+    {
+        setCurrentWidget(widget);
+        LinechartWidget* chart = dynamic_cast<LinechartWidget*>(widget);
+        if (chart)
+        {
+            chart->setActive(true);
+            chart->setActiveSystem(systemid);
+        }
+    }
 }
 
 void Linecharts::addSystem(UASInterface* uas)
 {
-    // FIXME Add removeSystem() call
-
-    // Compatibility hack
-    int uasid = 0; /*uas->getUASID()*/
-    if (!plots.contains(uasid))
+    if (!plots.contains(uas->getUASID()))
     {
-        LinechartWidget* widget = new LinechartWidget(uasid, this);
+        LinechartWidget* widget = new LinechartWidget(uas->getUASID(), this);
         addWidget(widget);
-        plots.insert(uasid, widget);
-		
-		// Connect valueChanged signals
-        connect(uas, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)), widget, SLOT(appendData(int,QString,QString,QVariant,quint64)));
+        plots.insert(uas->getUASID(), widget);
+        // Values without unit
+        //connect(uas, SIGNAL(valueChanged(int,QString,double,quint64)), widget, SLOT(appendData(int,QString,double,quint64)));
+        // Values with unit as double
+        connect(uas, SIGNAL(valueChanged(int,QString,QString,double,quint64)), widget, SLOT(appendData(int,QString,QString,double,quint64)));
+        // Values with unit as integer
+        connect(uas, SIGNAL(valueChanged(int,QString,QString,int,quint64)), widget, SLOT(appendData(int,QString,QString,int,quint64)));
 
         connect(widget, SIGNAL(logfileWritten(QString)), this, SIGNAL(logfileWritten(QString)));
         // Set system active if this is the only system
-//        if (active)
-//        {
-//            if (plots.size() == 1)
-//            {
+        if (active)
+        {
+            if (plots.size() == 1)
+            {
                 // FIXME XXX HACK
                 // Connect generic sources
                 for (int i = 0; i < genericSources.count(); ++i)
                 {
-                    connect(genericSources[i], SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,QVariant,quint64)));
+                    connect(genericSources[i], SIGNAL(valueChanged(int,QString,QString,int,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,int,quint64)));
+                    connect(genericSources[i], SIGNAL(valueChanged(int,QString,QString,unsigned int,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,unsigned int,quint64)));
+                    connect(genericSources[i], SIGNAL(valueChanged(int,QString,QString,quint64,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,quint64,quint64)));
+                    connect(genericSources[i], SIGNAL(valueChanged(int,QString,QString,qint64,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,qint64,quint64)));
+                    connect(genericSources[i], SIGNAL(valueChanged(int,QString,QString,double,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,double,quint64)));
                 }
                 // Select system
-                widget->setActive(true);
-                //widget->selectActiveSystem(0);
+                selectSystem(uas->getUASID());
             }
-//        }
-//    }
+        }
+    }
 }
 
 void Linecharts::addSource(QObject* obj)
@@ -129,6 +130,10 @@ void Linecharts::addSource(QObject* obj)
     if (plots.size() > 0)
     {
         // Connect generic source
-        connect(obj, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,QVariant,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,int,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,int,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,unsigned int,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,unsigned int,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,quint64,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,quint64,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,qint64,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,qint64,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,double,quint64)), plots.values().first(), SLOT(appendData(int,QString,QString,double,quint64)));
     }
 }

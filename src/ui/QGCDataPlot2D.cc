@@ -47,7 +47,7 @@ This file is part of the QGROUNDCONTROL project
 
 QGCDataPlot2D::QGCDataPlot2D(QWidget *parent) :
     QWidget(parent),
-    plot(new IncrementalPlot(parent)),
+    plot(new IncrementalPlot()),
     logFile(NULL),
     ui(new Ui::QGCDataPlot2D)
 {
@@ -70,10 +70,6 @@ QGCDataPlot2D::QGCDataPlot2D(QWidget *parent) :
     connect(ui->gridCheckBox, SIGNAL(clicked(bool)), plot, SLOT(showGrid(bool)));
     connect(ui->regressionButton, SIGNAL(clicked()), this, SLOT(calculateRegression()));
     connect(ui->style, SIGNAL(currentIndexChanged(QString)), plot, SLOT(setStyleText(QString)));
-
-    // Allow style changes to propagate through this widget
-    connect(MainWindow::instance(), SIGNAL(styleChanged(MainWindow::QGC_MAINWINDOW_STYLE)),
-            plot, SLOT(styleChanged(MainWindow::QGC_MAINWINDOW_STYLE)));
 }
 
 void QGCDataPlot2D::reloadFile()
@@ -120,8 +116,6 @@ void QGCDataPlot2D::savePlot()
     fileName = QFileDialog::getSaveFileName(
                    this, "Export File Name", QDesktopServices::storageLocation(QDesktopServices::DesktopLocation),
                    "PDF Documents (*.pdf);;SVG Images (*.svg)");
-    if (fileName.isEmpty())
-        return;
 
     if (!fileName.contains(".")) {
         // .pdf is default extension
@@ -140,8 +134,6 @@ void QGCDataPlot2D::savePlot()
         fileName = QFileDialog::getSaveFileName(
                        this, "Export File Name", QDesktopServices::storageLocation(QDesktopServices::DesktopLocation),
                        "PDF Documents (*.pdf);;SVG Images (*.svg)");
-        if (fileName.isEmpty())
-            return; //Abort if cancelled
     }
 
     if (fileName.endsWith(".pdf")) {
@@ -254,27 +246,21 @@ void QGCDataPlot2D::exportSVG(QString fileName)
  */
 void QGCDataPlot2D::selectFile()
 {
-    // Open a file dialog prompting the user for the file to load.
-    // Note the special case for the Pixhawk.
+    // Let user select the log file name
+    //QDate date(QDate::currentDate());
+    // QString("./pixhawk-log-" + date.toString("yyyy-MM-dd") + "-" + QString::number(logindex) + ".log")
+
     if (ui->inputFileType->currentText().contains("pxIMU") || ui->inputFileType->currentText().contains("RAW")) {
         fileName = QFileDialog::getOpenFileName(this, tr("Specify log file name"), QString(), "Logfile (*.imu *.raw)");
-    }
-    else
-    {
+    } else {
         fileName = QFileDialog::getOpenFileName(this, tr("Specify log file name"), QString(), "Logfile (*.csv *.txt *.log)");
     }
 
-    // Check if the user hit cancel, which results in a Null string.
-    // If this is the case, we just stop.
-    if (fileName.isNull())
-    {
-        return;
-    }
+    // Store reference to file
 
-    // Now attempt to open the file
     QFileInfo fileInfo(fileName);
-    if (!fileInfo.isReadable())
-    {
+
+    if (!fileInfo.isReadable()) {
         QMessageBox msgBox;
         msgBox.setIcon(QMessageBox::Critical);
         msgBox.setText("Could not open file");
@@ -283,9 +269,7 @@ void QGCDataPlot2D::selectFile()
         msgBox.setDefaultButton(QMessageBox::Ok);
         msgBox.exec();
         ui->filenameLabel->setText(tr("Could not open %1").arg(fileInfo.baseName()+"."+fileInfo.completeSuffix()));
-    }
-    else
-    {
+    } else {
         ui->filenameLabel->setText(tr("Opened %1").arg(fileInfo.completeBaseName()+"."+fileInfo.completeSuffix()));
         // Open and import the file
         loadFile();
@@ -568,7 +552,7 @@ void QGCDataPlot2D::loadCsvLog(QString file, QString xAxisName, QString yAxisFil
 
 bool QGCDataPlot2D::calculateRegression()
 {
-    // TODO: Add support for quadratic / cubic curve fitting
+    // TODO Add support for quadratic / cubic curve fitting
     return calculateRegression(ui->xRegressionComboBox->currentText(), ui->yRegressionComboBox->currentText(), "linear");
 }
 
@@ -587,22 +571,17 @@ bool QGCDataPlot2D::calculateRegression(QString xName, QString yName, QString me
             ui->xRegressionComboBox->setCurrentIndex(curveNames.indexOf(xName));
             ui->yRegressionComboBox->setCurrentIndex(curveNames.indexOf(yName));
         }
-
-        // Create a couple of arrays for us to use to temporarily store some of the data from the plot.
-        // These arrays are allocated on the heap as they are far too big to go in the stack and will
-        // cause an overflow.
-        // TODO: Look into if this would be better done by having a getter return const double pointers instead
-        // of using memcpy().
         const int size = 100000;
-        double *x = new double[size];
-        double *y = new double[size];
+        double x[size];
+        double y[size];
         int copied = plot->data(yName, x, y, size);
 
         if (method == "linear") {
             double a;  // Y-axis crossing
             double b;  // Slope
             double r;  // Regression coefficient
-            if (linearRegression(x, y, copied, &a, &b, &r)) {
+            int lin = linearRegression(x, y, copied, &a, &b, &r);
+            if(lin == 1) {
                 function = tr("%1 = %2 * %3 + %4 | R-coefficient: %5").arg(yName, QString::number(b), xName, QString::number(a), QString::number(r));
 
                 // Plot curve
@@ -612,17 +591,19 @@ bool QGCDataPlot2D::calculateRegression(QString xName, QString yName, QString me
                 plot->setStyleText("lines");
                 // x-value of the current rightmost x position in the plot
                 plot->appendData(tr("regression %1-%2").arg(xName, yName), plot->invTransform(QwtPlot::xBottom, plot->width() - plot->width()*0.08f), (a + b*plot->invTransform(QwtPlot::xBottom, plot->width() - plot->width() * 0.08f)));
-
                 result = true;
             } else {
                 function = tr("Linear regression failed. (Limit: %1 data points. Try with less)").arg(size);
+                result = false;
             }
+        } else if (method == "quadratic") {
+
+        } else if (method == "cubic") {
+
         } else {
             function = tr("Regression method %1 not found").arg(method);
+            result = false;
         }
-
-        delete x;
-        delete y;
     } else {
         // xName == yName
         function = tr("Please select different X and Y dimensions, not %1 = %2").arg(xName, yName);
@@ -646,7 +627,7 @@ bool QGCDataPlot2D::calculateRegression(QString xName, QString yName, QString me
  *          the match of the regression.
  * @return 1 on success, 0 on failure (e.g. because of infinite slope)
  */
-bool QGCDataPlot2D::linearRegression(double *x, double *y, int n, double *a, double *b, double *r)
+int QGCDataPlot2D::linearRegression(double* x,double* y,int n,double* a,double* b,double* r)
 {
     int i;
     double sumx=0,sumy=0,sumx2=0,sumy2=0,sumxy=0;
@@ -656,7 +637,7 @@ bool QGCDataPlot2D::linearRegression(double *x, double *y, int n, double *a, dou
     *b = 0;
     *r = 0;
     if (n < 2)
-        return true;
+        return(FALSE);
 
     /* Conpute some things we need */
     for (i=0; i<n; i++) {
@@ -672,7 +653,7 @@ bool QGCDataPlot2D::linearRegression(double *x, double *y, int n, double *a, dou
 
     /* Infinite slope (b), non existant intercept (a) */
     if (fabs(sxx) == 0)
-        return false;
+        return(FALSE);
 
     /* Calculate the slope (b) and intercept (a) */
     *b = sxy / sxx;
@@ -684,7 +665,7 @@ bool QGCDataPlot2D::linearRegression(double *x, double *y, int n, double *a, dou
     else
         *r = sxy / sqrt(sxx * syy);
 
-    return false;
+    return(TRUE);
 }
 
 void QGCDataPlot2D::saveCsvLog()
@@ -693,8 +674,6 @@ void QGCDataPlot2D::saveCsvLog()
     fileName = QFileDialog::getSaveFileName(
                    this, "Export CSV File Name", QDesktopServices::storageLocation(QDesktopServices::DesktopLocation),
                    "CSV file (*.csv);;Text file (*.txt)");
-    if (fileName.isEmpty())
-        return; //User cancelled
 
     if (!fileName.contains(".")) {
         // .csv is default extension

@@ -36,12 +36,13 @@ This file is part of the QGROUNDCONTROL project
 #include <QThread>
 #include <QMutex>
 #include <QString>
-#include <qserialport.h>
+#include "qserialport.h"
 #include <configuration.h>
 #include "SerialLinkInterface.h"
+#ifdef _WIN32
+#include "windows.h"
+#endif
 
-// convenience type for passing errors
-typedef  QSerialPort::SerialPortError SerialLinkPortError_t;
 
 /**
  * @brief The SerialLink class provides cross-platform access to serial links.
@@ -56,7 +57,6 @@ class SerialLink : public SerialLinkInterface
     Q_OBJECT
     //Q_INTERFACES(SerialLinkInterface:LinkInterface)
 
-
 public:
     SerialLink(QString portname = "",
                int baudrate=57600,
@@ -69,55 +69,49 @@ public:
     static const int poll_interval = SERIAL_POLL_INTERVAL; ///< Polling interval, defined in configuration.h
 
     /** @brief Get a list of the currently available ports */
-    QList<QString> getCurrentPorts();
+    QVector<QString>* getCurrentPorts();
 
-    void requestReset();
-
-    bool isConnected() const;
+    bool isConnected();
     qint64 bytesAvailable();
 
     /**
      * @brief The port handle
      */
-    QString getPortName() const;
+    QString getPortName();
     /**
      * @brief The human readable port name
      */
-    QString getName() const;
-    int getBaudRate() const;
-    int getDataBits() const;
-    int getStopBits() const;
+    QString getName();
+    int getBaudRate();
+    int getDataBits();
+    int getStopBits();
 
     // ENUM values
-    int getBaudRateType() const;
-    int getFlowType() const;
-    int getParityType() const;
-    int getDataBitsType() const;
-    int getStopBitsType() const;
+    int getBaudRateType();
+    int getFlowType();
+    int getParityType();
+    int getDataBitsType();
+    int getStopBitsType();
 
     /* Extensive statistics for scientific purposes */
-    qint64 getNominalDataRate() const;
+    qint64 getNominalDataRate();
     qint64 getTotalUpstream();
     qint64 getCurrentUpstream();
     qint64 getMaxUpstream();
     qint64 getTotalDownstream();
     qint64 getCurrentDownstream();
     qint64 getMaxDownstream();
-    qint64 getBitsSent() const;
-    qint64 getBitsReceived() const;
+    qint64 getBitsSent();
+    qint64 getBitsReceived();
 
     void loadSettings();
     void writeSettings();
 
     void run();
-    void run2();
 
-    int getLinkQuality() const;
-    bool isFullDuplex() const;
-    int getId() const;
-
-signals: //[TODO] Refactor to Linkinterface
-    void updateLink(LinkInterface*);
+    int getLinkQuality();
+    bool isFullDuplex();
+    int getId();
 
 public slots:
     bool setPortName(QString portName);
@@ -146,41 +140,39 @@ public slots:
     bool connect();
     bool disconnect();
 
-    void linkError(SerialLinkPortError_t error);
+protected slots:
+    void checkForBytes();
 
 protected:
-    quint64 m_bytesRead;
-    QSerialPort* m_port;
-    int m_baud;
-    int m_dataBits;
-    int m_flowControl;
-    int m_stopBits;
-    int m_parity;
-    QString m_portName;
-//    QString m_name;
-    int m_timeout;
-    int m_id;
+    TNX::QSerialPort * port;
+    TNX::QPortSettings portSettings;
+#ifdef _WIN32
+    HANDLE winPort;
+    DCB winPortSettings;
+#endif
+    QString porthandle;
+    QString name;
+    int timeout;
+    int id;
 
-    quint64 m_bitsSentTotal;
-    quint64 m_bitsSentShortTerm;
-    quint64 m_bitsSentCurrent;
-    quint64 m_bitsSentMax;
-    quint64 m_bitsReceivedTotal;
-    quint64 m_bitsReceivedShortTerm;
-    quint64 m_bitsReceivedCurrent;
-    quint64 m_bitsReceivedMax;
-    quint64 m_connectionStartTime;
-    QMutex m_statisticsMutex;
-    QMutex m_dataMutex;
-    QMutex m_writeMutex;
-    QList<QString> m_ports;
+    quint64 bitsSentTotal;
+    quint64 bitsSentShortTerm;
+    quint64 bitsSentCurrent;
+    quint64 bitsSentMax;
+    quint64 bitsReceivedTotal;
+    quint64 bitsReceivedShortTerm;
+    quint64 bitsReceivedCurrent;
+    quint64 bitsReceivedMax;
+    quint64 connectionStartTime;
+    QMutex statisticsMutex;
+    QMutex dataMutex;
+    QVector<QString>* ports;
 
 private:
-    volatile bool m_stopp;
-    volatile bool m_reqReset;
+	volatile bool m_stopp;
 	QMutex m_stoppMutex;
-    QByteArray m_transmitBuffer;
 
+    void setName(QString name);
     bool hardwareConnect();
 
 signals:

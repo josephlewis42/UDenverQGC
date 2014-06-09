@@ -34,18 +34,15 @@ This file is part of the PIXHAWK project
 #include "WaypointList.h"
 #include "ui_WaypointList.h"
 #include <UASInterface.h>
-#include <UAS.h>
 #include <UASManager.h>
 #include <QDebug>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QMouseEvent>
-#include <QTextEdit>
 
-WaypointList::WaypointList(QWidget *parent, UASWaypointManager* wpm) :
+WaypointList::WaypointList(QWidget *parent, UASInterface* uas) :
     QWidget(parent),
     uas(NULL),
-    WPM(wpm),
     mavX(0.0),
     mavY(0.0),
     mavZ(0.0),
@@ -99,43 +96,28 @@ WaypointList::WaypointList(QWidget *parent, UASWaypointManager* wpm) :
 
     connect(m_ui->refreshButton, SIGNAL(clicked()), this, SLOT(refresh()));
 
-    if (WPM) {
-        // SET UAS AFTER ALL SIGNALS/SLOTS ARE CONNECTED
-        if (!WPM->getUAS())
-        {
-            // Disable buttons which don't make sense without valid UAS.
-            m_ui->positionAddButton->setEnabled(false);
-            m_ui->transmitButton->setEnabled(false);
-            m_ui->readButton->setEnabled(false);
-            m_ui->refreshButton->setEnabled(false);
 
-            //FIXME: The whole "Onboard Waypoints"-tab should be hidden, instead of "refresh" button
-            // Insert a "NO UAV" info into the Onboard Tab
-            QLabel* noUas = new QLabel(this);
-            noUas->setObjectName("noUas");
-            noUas->setText("NO UAS");
-            noUas->setEnabled(false);
-            noUas->setAlignment(Qt::AlignCenter);
-            viewOnlyListLayout->insertWidget(0, noUas);
-
-            showOfflineWarning = true;
-        } else {
-            setUAS(static_cast<UASInterface*>(WPM->getUAS()));
-        }
-
-        /* connect slots */
-        connect(WPM, SIGNAL(updateStatusString(const QString &)),        this, SLOT(updateStatusLabel(const QString &)));
-        connect(WPM, SIGNAL(waypointEditableListChanged(void)),                  this, SLOT(waypointEditableListChanged(void)));
-        connect(WPM, SIGNAL(waypointEditableChanged(int,Waypoint*)), this, SLOT(updateWaypointEditable(int,Waypoint*)));
-        connect(WPM, SIGNAL(waypointViewOnlyListChanged(void)),                  this, SLOT(waypointViewOnlyListChanged(void)));
-        connect(WPM, SIGNAL(waypointViewOnlyChanged(int,Waypoint*)), this, SLOT(updateWaypointViewOnly(int,Waypoint*)));
-        connect(WPM, SIGNAL(currentWaypointChanged(quint16)),            this, SLOT(currentWaypointViewOnlyChanged(quint16)));
-
-        //Even if there are no waypoints, since this is a new instance and there is an
-        //existing WPM, then we need to assume things have changed, and act appropriatly.
-        waypointEditableListChanged();
-        waypointViewOnlyListChanged();
+    // SET UAS AFTER ALL SIGNALS/SLOTS ARE CONNECTED
+    if (uas)
+    {
+        WPM = uas->getWaypointManager();
+        //setUAS(uas);
     }
+    else
+    {
+        // Hide buttons, which don't make sense without valid UAS
+        m_ui->positionAddButton->hide();
+        m_ui->transmitButton->hide();
+        m_ui->readButton->hide();
+        m_ui->refreshButton->hide();
+        //FIXME: The whole "Onboard Waypoints"-tab should be hidden, instead of "refresh" button       
+        UnconnectedUASInfoWidget* inf = new UnconnectedUASInfoWidget(this);
+        viewOnlyListLayout->insertWidget(0, inf); //insert a "NO UAV" info into the Onboard Tab
+        showOfflineWarning = true;
+        WPM = new UASWaypointManager(NULL);
+    }
+
+    setUAS(uas);
 
     // STATUS LABEL
     updateStatusLabel("");
@@ -173,58 +155,48 @@ void WaypointList::updateAttitude(UASInterface* uas, double roll, double pitch, 
 
 void WaypointList::setUAS(UASInterface* uas)
 {
-    if (!uas)
-        return;
-
-    if (this->uas != NULL)
+    //if (this->uas == NULL && uas != NULL)
+    if (this->uas == NULL)
     {
-        // Clear current list
-        on_clearWPListButton_clicked();
-        // Disconnect everything
-        disconnect(WPM, SIGNAL(updateStatusString(const QString &)),        this, SLOT(updateStatusLabel(const QString &)));
-        disconnect(WPM, SIGNAL(waypointEditableListChanged(void)),                  this, SLOT(waypointEditableListChanged(void)));
-        disconnect(WPM, SIGNAL(waypointEditableChanged(int,Waypoint*)), this, SLOT(updateWaypointEditable(int,Waypoint*)));
-        disconnect(WPM, SIGNAL(waypointViewOnlyListChanged(void)),                  this, SLOT(waypointViewOnlyListChanged(void)));
-        disconnect(WPM, SIGNAL(waypointViewOnlyChanged(int,Waypoint*)), this, SLOT(updateWaypointViewOnly(int,Waypoint*)));
-        disconnect(WPM, SIGNAL(currentWaypointChanged(quint16)),            this, SLOT(currentWaypointViewOnlyChanged(quint16)));
-        disconnect(this->uas, SIGNAL(localPositionChanged(UASInterface*,double,double,double,quint64)),  this, SLOT(updatePosition(UASInterface*,double,double,double,quint64)));
-        disconnect(this->uas, SIGNAL(attitudeChanged(UASInterface*,double,double,double,quint64)),       this, SLOT(updateAttitude(UASInterface*,double,double,double,quint64)));
+        this->uas = uas;
+        connect(WPM, SIGNAL(updateStatusString(const QString &)),        this, SLOT(updateStatusLabel(const QString &)));
+        connect(WPM, SIGNAL(waypointEditableListChanged(void)),                  this, SLOT(waypointEditableListChanged(void)));
+        connect(WPM, SIGNAL(waypointEditableChanged(int,Waypoint*)), this, SLOT(updateWaypointEditable(int,Waypoint*)));
+        connect(WPM, SIGNAL(waypointViewOnlyListChanged(void)),                  this, SLOT(waypointViewOnlyListChanged(void)));
+        connect(WPM, SIGNAL(waypointViewOnlyChanged(int,Waypoint*)), this, SLOT(updateWaypointViewOnly(int,Waypoint*)));
+        connect(WPM, SIGNAL(currentWaypointChanged(quint16)),            this, SLOT(currentWaypointViewOnlyChanged(quint16)));
+        if (uas != NULL)
+        {
+            connect(uas, SIGNAL(localPositionChanged(UASInterface*,double,double,double,quint64)),  this, SLOT(updatePosition(UASInterface*,double,double,double,quint64)));
+            connect(uas, SIGNAL(attitudeChanged(UASInterface*,double,double,double,quint64)),       this, SLOT(updateAttitude(UASInterface*,double,double,double,quint64)));
+        }
+        //connect(WPM,SIGNAL(loadWPFile()),this,SLOT(setIsLoadFileWP()));
+        //connect(WPM,SIGNAL(readGlobalWPFromUAS(bool)),this,SLOT(setIsReadGlobalWP(bool)));
     }
-
-    // Now that there's a valid UAS, enable the UI.
-    m_ui->positionAddButton->setEnabled(true);
-    m_ui->transmitButton->setEnabled(true);
-    m_ui->readButton->setEnabled(true);
-    m_ui->refreshButton->setEnabled(true);
-
-    WPM = uas->getWaypointManager();
-
-    this->uas = uas;
-    connect(WPM, SIGNAL(updateStatusString(const QString &)),        this, SLOT(updateStatusLabel(const QString &)));
-    connect(WPM, SIGNAL(waypointEditableListChanged(void)),                  this, SLOT(waypointEditableListChanged(void)));
-    connect(WPM, SIGNAL(waypointEditableChanged(int,Waypoint*)), this, SLOT(updateWaypointEditable(int,Waypoint*)));
-    connect(WPM, SIGNAL(waypointViewOnlyListChanged(void)),                  this, SLOT(waypointViewOnlyListChanged(void)));
-    connect(WPM, SIGNAL(waypointViewOnlyChanged(int,Waypoint*)), this, SLOT(updateWaypointViewOnly(int,Waypoint*)));
-    connect(WPM, SIGNAL(currentWaypointChanged(quint16)),            this, SLOT(currentWaypointViewOnlyChanged(quint16)));
-    connect(uas, SIGNAL(localPositionChanged(UASInterface*,double,double,double,quint64)),  this, SLOT(updatePosition(UASInterface*,double,double,double,quint64)));
-    connect(uas, SIGNAL(attitudeChanged(UASInterface*,double,double,double,quint64)),       this, SLOT(updateAttitude(UASInterface*,double,double,double,quint64)));
-    //connect(WPM,SIGNAL(loadWPFile()),this,SLOT(setIsLoadFileWP()));
-    //connect(WPM,SIGNAL(readGlobalWPFromUAS(bool)),this,SLOT(setIsReadGlobalWP(bool)));
-
-    // Update list
-    read();
 }
 
 void WaypointList::saveWaypoints()
 {
 
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "./waypoints.txt", tr("Waypoint File (*.txt)"));
-    WPM->saveWaypoints(fileName);
+        QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "./waypoints.txt", tr("Waypoint File (*.txt)"));
+        WPM->saveWaypoints(fileName);
 
 }
 
 void WaypointList::loadWaypoints()
 {
+    //create a popup notifying the user about the limitations of offline editing
+    if (showOfflineWarning == true)
+    {
+        QMessageBox msgBox;
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setText("Offline editor!");
+        msgBox.setInformativeText("You are using the offline mission editor. Please don't forget to save your mission plan before connecting the UAV, otherwise it will be lost.");
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setDefaultButton(QMessageBox::Ok);
+        int ret = msgBox.exec();
+        showOfflineWarning = false;
+    }
     QString fileName = QFileDialog::getOpenFileName(this, tr("Load File"), ".", tr("Waypoint File (*.txt)"));
     WPM->loadWaypoints(fileName);
 }
@@ -255,110 +227,96 @@ void WaypointList::refresh()
 
 void WaypointList::addEditable()
 {
-    addEditable(false);
-}
 
-void WaypointList::addEditable(bool onCurrentPosition)
-{
-
-    const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
-    Waypoint *wp;
-    if (waypoints.count() > 0 &&
-            !(onCurrentPosition && uas && (uas->localPositionKnown() || uas->globalPositionKnown())))
-    {
-        // Create waypoint with last frame
-        Waypoint *last = waypoints.last();
-        wp = WPM->createWaypoint();
-//        wp->blockSignals(true);
-        MAV_FRAME frame = (MAV_FRAME)last->getFrame();
-        wp->setFrame(frame);
-        if (frame == MAV_FRAME_GLOBAL || frame == MAV_FRAME_GLOBAL_RELATIVE_ALT)
+        const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+        Waypoint *wp;
+        if (waypoints.size() > 0)
         {
-            wp->setLatitude(last->getLatitude());
-            wp->setLongitude(last->getLongitude());
-            wp->setAltitude(last->getAltitude());
-        } else {
-            wp->setX(last->getX());
-            wp->setY(last->getY());
-            wp->setZ(last->getZ());
+            // Create waypoint with last frame
+            Waypoint *last = waypoints.at(waypoints.size()-1);
+            wp = new Waypoint(0, last->getX(), last->getY(), last->getZ(), last->getParam1(), last->getParam2(), last->getParam3(), last->getParam4(),
+                              last->getAutoContinue(), false, last->getFrame(), last->getAction());
+            WPM->addWaypointEditable(wp);
         }
-        wp->setParam1(last->getParam1());
-        wp->setParam1(last->getParam2());
-        wp->setParam1(last->getParam3());
-        wp->setParam1(last->getParam4());
-        wp->setAutocontinue(last->getAutoContinue());
-//        wp->blockSignals(false);
-        wp->setAction(last->getAction());
-//        WPM->addWaypointEditable(wp);
-    }
-    else
-    {
-        if (uas)
-        {
-            // Create first waypoint at current MAV position
-            if (uas->globalPositionKnown())
+        else
+        {            
+            if (uas)
             {
-                if (onCurrentPosition)
-                {
-
-                    if (WPM->getFrameRecommendation() == MAV_FRAME_GLOBAL) {
-                        updateStatusLabel(tr("Added default GLOBAL (Abs alt.) waypoint."));
-                    } else {
-                        updateStatusLabel(tr("Added default GLOBAL (Relative alt.) waypoint."));
-                    }
-                    wp = new Waypoint(0, uas->getLatitude(), uas->getLongitude(), uas->getAltitude(), 0, WPM->getAcceptanceRadiusRecommendation(), 0, 0,true, true, (MAV_FRAME)WPM->getFrameRecommendation(), MAV_CMD_NAV_WAYPOINT);
-                    WPM->addWaypointEditable(wp);
-
-                } else {
-
-                    if (WPM->getFrameRecommendation() == MAV_FRAME_GLOBAL) {
-                        updateStatusLabel(tr("Added default GLOBAL (Abs alt.) waypoint."));
-                    } else {
-                        updateStatusLabel(tr("Added default GLOBAL (Relative alt.) waypoint."));
-                    }
-                    wp = new Waypoint(0, UASManager::instance()->getHomeLatitude(),
-                                      UASManager::instance()->getHomeLongitude(),
-                                      WPM->getAltitudeRecommendation(), 0, WPM->getAcceptanceRadiusRecommendation(), 0, 0,true, true, (MAV_FRAME)WPM->getFrameRecommendation(), MAV_CMD_NAV_WAYPOINT);
-                    WPM->addWaypointEditable(wp);
-                }
-            }
-            else if (uas->localPositionKnown())
-            {
-                if (onCurrentPosition)
-                {
-                    updateStatusLabel(tr("Added default LOCAL (NED) waypoint."));
-                    wp = new Waypoint(0, uas->getLocalX(), uas->getLocalY(), uas->getLocalZ(), 0, WPM->getAcceptanceRadiusRecommendation(), 0, 0,true, true, MAV_FRAME_LOCAL_NED, MAV_CMD_NAV_WAYPOINT);
-                    WPM->addWaypointEditable(wp);
-                } else {
-                    updateStatusLabel(tr("Added default LOCAL (NED) waypoint."));
-                    wp = new Waypoint(0, 0, 0, -0.50, 0, WPM->getAcceptanceRadiusRecommendation(), 0, 0,true, true, MAV_FRAME_LOCAL_NED, MAV_CMD_NAV_WAYPOINT);
-                    WPM->addWaypointEditable(wp);
-                }
+                // Create first waypoint at current MAV position
+                addCurrentPositionWaypoint();
             }
             else
             {
-                // MAV connected, but position unknown, add default waypoint
-                updateStatusLabel(tr("WARNING: No position known. Adding default LOCAL (NED) waypoint"));
-                wp = new Waypoint(0, UASManager::instance()->getHomeLatitude(),
-                                  UASManager::instance()->getHomeLongitude(),
-                                  WPM->getAltitudeRecommendation(), 0, WPM->getAcceptanceRadiusRecommendation(), 0, 0,true, true, (MAV_FRAME)WPM->getFrameRecommendation(), MAV_CMD_NAV_WAYPOINT);
+                //Since no UAV available, create first default waypoint.
+                 updateStatusLabel(tr("No UAV. Added default LOCAL (NED) waypoint"));
+                wp = new Waypoint(0, 0, 0, -0.50, 0, 0.20, 0, 0,true, true, MAV_FRAME_LOCAL_NED, MAV_CMD_NAV_WAYPOINT);
                 WPM->addWaypointEditable(wp);
+                //create a popup notifying the user about the limitations of offline editing
+                if (showOfflineWarning == true)
+                {
+                    QMessageBox msgBox;
+                    msgBox.setIcon(QMessageBox::Warning);
+                    msgBox.setText("Offline editor!");
+                    msgBox.setInformativeText("You are using the offline mission editor. Please don't forget to save your mission plan before connecting the UAV, otherwise it will be lost.");
+                    msgBox.setStandardButtons(QMessageBox::Ok);
+                    msgBox.setDefaultButton(QMessageBox::Ok);
+                    int ret = msgBox.exec();
+                    showOfflineWarning = false;
+                }
             }
+        }
+
+}
+
+
+void WaypointList::addCurrentPositionWaypoint()
+{    
+    if (uas)
+    {
+        const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+        Waypoint *wp;
+        Waypoint *last = 0;
+        if (waypoints.size() > 0)
+        {
+            last = waypoints.at(waypoints.size()-1);
+        }
+
+        if (uas->globalPositionKnown())
+        {
+            float acceptanceRadiusGlobal = 10.0f;
+            float holdTime = 0.0f;
+            float yawGlobal = 0.0f;
+            if (last)
+            {
+                acceptanceRadiusGlobal = last->getAcceptanceRadius();
+                holdTime = last->getHoldTime();
+                yawGlobal = last->getYaw();
+            }
+            // Create global frame waypoint per default
+            wp = new Waypoint(0, uas->getLatitude(), uas->getLongitude(), uas->getAltitude(), 0, acceptanceRadiusGlobal, holdTime, yawGlobal, true, false, MAV_FRAME_GLOBAL_RELATIVE_ALT, MAV_CMD_NAV_WAYPOINT);
+            WPM->addWaypointEditable(wp);
+            updateStatusLabel(tr("Added GLOBAL, ALTITUDE OVER GROUND waypoint"));
+        }
+        else if (uas->localPositionKnown())
+        {
+            float acceptanceRadiusLocal = 0.2f;
+            float holdTime = 0.5f;
+            if (last)
+            {
+                acceptanceRadiusLocal = last->getAcceptanceRadius();
+                holdTime = last->getHoldTime();
+            }
+            // Create local frame waypoint as second option
+            wp = new Waypoint(0, uas->getLocalX(), uas->getLocalY(), uas->getLocalZ(), uas->getYaw(), acceptanceRadiusLocal, holdTime, 0.0, true, false, MAV_FRAME_LOCAL_NED, MAV_CMD_NAV_WAYPOINT);
+            WPM->addWaypointEditable(wp);
+            updateStatusLabel(tr("Added LOCAL (NED) waypoint"));
         }
         else
         {
-            //Since no UAV available, create first default waypoint.
-            updateStatusLabel(tr("No UAV connected. Adding default GLOBAL (NED) waypoint"));
-            wp = new Waypoint(0, UASManager::instance()->getHomeLatitude(),
-                              UASManager::instance()->getHomeLongitude(),
-                              WPM->getAltitudeRecommendation(), 0, WPM->getAcceptanceRadiusRecommendation(), 0, 0,true, true, (MAV_FRAME)WPM->getFrameRecommendation(), MAV_CMD_NAV_WAYPOINT);
-            WPM->addWaypointEditable(wp);
+            // Do nothing
+            updateStatusLabel(tr("Not adding waypoint, no position of MAV known yet."));
         }
     }
-}
-
-void WaypointList::addCurrentPositionWaypoint() {
-    addEditable(true);
 }
 
 void WaypointList::updateStatusLabel(const QString &string)
@@ -382,11 +340,11 @@ void WaypointList::changeCurrentWaypoint(quint16 seq)
 void WaypointList::currentWaypointEditableChanged(quint16 seq)
 {
         WPM->setCurrentEditable(seq);
-        const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+        const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
 
-        if (seq < waypoints.count())
+        if (seq < waypoints.size())
         {
-            for(int i = 0; i < waypoints.count(); i++)
+            for(int i = 0; i < waypoints.size(); i++)
             {
                 WaypointEditableView* widget = wpEditableViews.find(waypoints[i]).value();
 
@@ -405,11 +363,11 @@ void WaypointList::currentWaypointEditableChanged(quint16 seq)
 // Update waypointViews to correctly indicate the new current waypoint
 void WaypointList::currentWaypointViewOnlyChanged(quint16 seq)
 {
-    const QList<Waypoint *> &waypoints = WPM->getWaypointViewOnlyList();
+    const QVector<Waypoint *> &waypoints = WPM->getWaypointViewOnlyList();
 
-    if (seq < waypoints.count())
+    if (seq < waypoints.size())
     {
-        for(int i = 0; i < waypoints.count(); i++)
+        for(int i = 0; i < waypoints.size(); i++)
         {
             WaypointViewOnlyView* widget = wpViewOnlyViews.find(waypoints[i]).value();
 
@@ -443,7 +401,7 @@ void WaypointList::waypointViewOnlyListChanged()
 {
     // Prevent updates to prevent visual flicker
     this->setUpdatesEnabled(false);
-    const QList<Waypoint *> &waypoints = WPM->getWaypointViewOnlyList();
+    const QVector<Waypoint *> &waypoints = WPM->getWaypointViewOnlyList();
 
     if (!wpViewOnlyViews.empty()) {
         QMapIterator<Waypoint*,WaypointViewOnlyView*> viewIt(wpViewOnlyViews);
@@ -452,12 +410,12 @@ void WaypointList::waypointViewOnlyListChanged()
             viewIt.next();
             Waypoint *cur = viewIt.key();
             int i;
-            for (i = 0; i < waypoints.count(); i++) {
+            for (i = 0; i < waypoints.size(); i++) {
                 if (waypoints[i] == cur) {
                     break;
                 }
             }
-            if (i == waypoints.count()) {
+            if (i == waypoints.size()) {
                 WaypointViewOnlyView* widget = wpViewOnlyViews.find(cur).value();
                 widget->hide();
                 viewOnlyListLayout->removeWidget(widget);
@@ -467,7 +425,7 @@ void WaypointList::waypointViewOnlyListChanged()
     }
 
     // then add/update the views for each waypoint in the list
-    for(int i = 0; i < waypoints.count(); i++) {
+    for(int i = 0; i < waypoints.size(); i++) {
         Waypoint *wp = waypoints[i];
         if (!wpViewOnlyViews.contains(wp)) {
             WaypointViewOnlyView* wpview = new WaypointViewOnlyView(wp, this);
@@ -495,7 +453,7 @@ void WaypointList::waypointEditableListChanged()
 {
     // Prevent updates to prevent visual flicker
     this->setUpdatesEnabled(false);
-    const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+    const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
 
     if (!wpEditableViews.empty()) {
         QMapIterator<Waypoint*,WaypointEditableView*> viewIt(wpEditableViews);
@@ -504,12 +462,12 @@ void WaypointList::waypointEditableListChanged()
             viewIt.next();
             Waypoint *cur = viewIt.key();
             int i;
-            for (i = 0; i < waypoints.count(); i++) {
+            for (i = 0; i < waypoints.size(); i++) {
                 if (waypoints[i] == cur) {
                     break;
                 }
             }
-            if (i == waypoints.count()) {
+            if (i == waypoints.size()) {
                 WaypointEditableView* widget = wpEditableViews.find(cur).value();
                 widget->hide();
                 editableListLayout->removeWidget(widget);
@@ -519,7 +477,7 @@ void WaypointList::waypointEditableListChanged()
     }
 
     // then add/update the views for each waypoint in the list
-    for(int i = 0; i < waypoints.count(); i++) {
+    for(int i = 0; i < waypoints.size(); i++) {
         Waypoint *wp = waypoints[i];
         if (!wpEditableViews.contains(wp)) {
             WaypointEditableView* wpview = new WaypointEditableView(wp, this);
@@ -549,34 +507,34 @@ void WaypointList::waypointEditableListChanged()
 
 void WaypointList::moveUp(Waypoint* wp)
 {
-    const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+    const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
 
     //get the current position of wp in the local storage
     int i;
-    for (i = 0; i < waypoints.count(); i++) {
+    for (i = 0; i < waypoints.size(); i++) {
         if (waypoints[i] == wp)
             break;
     }
 
     // if wp was found and its not the first entry, move it
-    if (i < waypoints.count() && i > 0) {
+    if (i < waypoints.size() && i > 0) {
         WPM->moveWaypoint(i, i-1);
     }
 }
 
 void WaypointList::moveDown(Waypoint* wp)
 {    
-    const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+    const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
 
     //get the current position of wp in the local storage
     int i;
-    for (i = 0; i < waypoints.count(); i++) {
+    for (i = 0; i < waypoints.size(); i++) {
         if (waypoints[i] == wp)
             break;
     }
 
     // if wp was found and its not the last entry, move it
-    if (i < waypoints.count()-1) {
+    if (i < waypoints.size()-1) {
         WPM->moveWaypoint(i, i+1);
     }
 }
@@ -601,27 +559,75 @@ void WaypointList::changeEvent(QEvent *e)
 
 void WaypointList::on_clearWPListButton_clicked()
 {
+
+
     if (uas) {
         emit clearPathclicked();
-        const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
-        while(!waypoints.isEmpty()) {
+        const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+        while(!waypoints.isEmpty()) { //for(int i = 0; i <= waypoints.size(); i++)
             WaypointEditableView* widget = wpEditableViews.find(waypoints[0]).value();
             widget->remove();
         }
+    } else {
+//        if(isGlobalWP)
+//        {
+//           emit clearPathclicked();
+//        }
     }
 }
 
+///** @brief The MapWidget informs that a waypoint global was changed on the map */
+
+//void WaypointList::waypointGlobalChanged(QPointF coordinate, int indexWP)
+//{
+//    if (uas)
+//    {
+//        const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+//        if (waypoints.size() > 0)
+//        {
+//            Waypoint *temp = waypoints.at(indexWP);
+
+//            temp->setX(coordinate.x());
+//            temp->setY(coordinate.y());
+
+//            //WaypointGlobalView* widget = wpGlobalViews.find(waypoints[indexWP]).value();
+//            //widget->updateValues();
+//        }
+//    }
+
+
+//}
+
+///** @brief The MapWidget informs that a waypoint global was changed on the map */
+
+//void WaypointList::waypointGlobalPositionChanged(Waypoint* wp)
+//{
+//    QPointF coordinate;
+//    coordinate.setX(wp->getX());
+//    coordinate.setY(wp->getY());
+
+//   emit ChangeWaypointGlobalPosition(wp->getId(), coordinate);
+
+
+//}
+
 void WaypointList::clearWPWidget()
 {    
-        // Get list
-        const QList<Waypoint *> &waypoints = WPM->getWaypointEditableList();
-
-
-        // XXX delete wps as well
-
-        // Clear UI elements
-        while(!waypoints.isEmpty()) {
+        const QVector<Waypoint *> &waypoints = WPM->getWaypointEditableList();
+        while(!waypoints.isEmpty()) { //for(int i = 0; i <= waypoints.size(); i++)
             WaypointEditableView* widget = wpEditableViews.find(waypoints[0]).value();
             widget->remove();
-        }
+        }    
 }
+
+//void WaypointList::setIsLoadFileWP()
+//{
+//    loadFileGlobalWP = true;
+//}
+
+//void WaypointList::setIsReadGlobalWP(bool value)
+//{
+//    // FIXME James Check this
+//    Q_UNUSED(value);
+//    // readGlobalWP = value;
+//}

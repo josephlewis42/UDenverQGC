@@ -24,9 +24,6 @@ public:
 
 public slots:
     void receiveMessage(LinkInterface* link,mavlink_message_t message);
-    /** @brief Clear all messages */
-    void clearView();
-    /** Update view */
     void refreshView();
     void addSystem(UASInterface* uas);
     void addComponent(int uas, int component, const QString& name);
@@ -44,7 +41,7 @@ protected:
     mavlink_message_t receivedMessages[256]; ///< Available / known messages
     QMap<int, QTreeWidgetItem*> treeWidgetItems;   ///< Available tree widget items
     QTimer updateTimer; ///< Only update at 1 Hz to not overload the GUI
-    mavlink_message_info_t messageInfo[256]; // Store the metadata for all available MAVLink messages.
+    mavlink_message_info_t messageInfo[256];
 
     // Update one message field
     void updateField(int msgid, int fieldid, QTreeWidgetItem* item);

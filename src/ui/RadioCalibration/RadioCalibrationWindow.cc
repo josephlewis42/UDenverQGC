@@ -1,4 +1,5 @@
 #include "RadioCalibrationWindow.h"
+#include "UAlbertaMAV.h"
 
 RadioCalibrationWindow::RadioCalibrationWindow(QWidget *parent) :
     QWidget(parent, Qt::Window),
@@ -270,21 +271,30 @@ void RadioCalibrationWindow::send()
 
 void RadioCalibrationWindow::request()
 {
-    // FIXME MAVLINKV10PORTINGNEEDED
-//    qDebug() << __FILE__ << __LINE__ << "READ FROM UAV";
-//    UAS *uas = dynamic_cast<UAS*>(UASManager::instance()->getUASForId(uasId));
-//    if (uas) {
-//        mavlink_message_t msg;
-//        mavlink_msg_action_pack(uasId, 0, &msg, 0, 0, ::MAV_ACTION_CALIBRATE_RC);
-//        uas->sendMessage(msg);
-//    }
+#ifdef MAVLINK_ENABLED_UALBERTA
+    qDebug() << __FILE__ << __LINE__ << "READ FROM UAV";
+    UAlbertaMAV *uas = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uasId));
+    if (uas) {
+        mavlink_message_t msg;
+        mavlink_msg_ualberta_action_pack(uasId, 100, &msg, ::UALBERTA_RC_CALIBRATION, 0);
+        uas->sendMessage(msg);
+    }
+#endif
 }
 
 void RadioCalibrationWindow::receive(const QPointer<RadioCalibrationData>& radio)
 {
     if (radio) {
         if (this->radio)
+        {
+            disconnect(aileron, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setAileron(int,uint16_t)));
+            disconnect(elevator, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setElevator(int,uint16_t)));
+            disconnect(rudder, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setRudder(int,uint16_t)));
+            disconnect(gyro, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setGyro(int,uint16_t)));
+            disconnect(pitch, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setPitch(int,uint16_t)));
+            disconnect(throttle, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setThrottle(int,uint16_t)));
             delete this->radio;
+        }
         this->radio = new RadioCalibrationData(*radio);
 
         aileron->set((*radio)(RadioCalibrationData::AILERON));
@@ -293,5 +303,12 @@ void RadioCalibrationWindow::receive(const QPointer<RadioCalibrationData>& radio
         gyro->set((*radio)(RadioCalibrationData::GYRO));
         pitch->set((*radio)(RadioCalibrationData::PITCH));
         throttle->set((*radio)(RadioCalibrationData::THROTTLE));
+
+        connect(aileron, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setAileron(int,uint16_t)));
+        connect(elevator, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setElevator(int,uint16_t)));
+        connect(rudder, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setRudder(int,uint16_t)));
+        connect(gyro, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setGyro(int,uint16_t)));
+        connect(pitch, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setPitch(int,uint16_t)));
+        connect(throttle, SIGNAL(setpointChanged(int,uint16_t)), this->radio, SLOT(setThrottle(int,uint16_t)));
     }
 }

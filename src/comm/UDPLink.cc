@@ -50,7 +50,6 @@ UDPLink::UDPLink(QHostAddress host, quint16 port)
 	this->name = tr("UDP Link (port:%1)").arg(this->port);
 	emit nameChanged(this->name);
     // LinkManager::instance()->add(this);
-    qDebug() << "UDP Created " << name;
 }
 
 UDPLink::~UDPLink()
@@ -105,7 +104,7 @@ void UDPLink::setPort(int port)
  */
 void UDPLink::addHost(const QString& host)
 {
-    qDebug() << "UDP:" << "ADDING HOST:" << host;
+    //qDebug() << "UDP:" << "ADDING HOST:" << host;
     if (host.contains(":"))
     {
         //qDebug() << "HOST: " << host.split(":").first();
@@ -124,9 +123,11 @@ void UDPLink::addHost(const QString& host)
                 }
             }
             hosts.append(address);
+			this->setAddress(address);
             //qDebug() << "Address:" << address.toString();
             // Set port according to user input
             ports.append(host.split(":").last().toInt());
+			this->setPort(host.split(":").last().toInt());
         }
     }
     else
@@ -292,9 +293,9 @@ bool UDPLink::connect()
 		this->quit();
 		this->wait();
 	}
-    bool connected = this->hardwareConnect();
+	this->hardwareConnect();
     start(HighPriority);
-    return connected;
+    return true;
 }
 
 bool UDPLink::hardwareConnect(void)
@@ -355,17 +356,17 @@ bool UDPLink::hardwareConnect(void)
  *
  * @return True if link is connected, false otherwise.
  **/
-bool UDPLink::isConnected() const
+bool UDPLink::isConnected()
 {
     return connectState;
 }
 
-int UDPLink::getId() const
+int UDPLink::getId()
 {
     return id;
 }
 
-QString UDPLink::getName() const
+QString UDPLink::getName()
 {
     return name;
 }
@@ -377,7 +378,7 @@ void UDPLink::setName(QString name)
 }
 
 
-qint64 UDPLink::getNominalDataRate() const
+qint64 UDPLink::getNominalDataRate()
 {
     return 54000000; // 54 Mbit
 }
@@ -400,12 +401,12 @@ qint64 UDPLink::getMaxUpstream()
     return 0; // TODO
 }
 
-qint64 UDPLink::getBitsSent() const
+qint64 UDPLink::getBitsSent()
 {
     return bitsSentTotal;
 }
 
-qint64 UDPLink::getBitsReceived() const
+qint64 UDPLink::getBitsReceived()
 {
     return bitsReceivedTotal;
 }
@@ -428,12 +429,12 @@ qint64 UDPLink::getMaxDownstream()
     return 0; // TODO
 }
 
-bool UDPLink::isFullDuplex() const
+bool UDPLink::isFullDuplex()
 {
     return true;
 }
 
-int UDPLink::getLinkQuality() const
+int UDPLink::getLinkQuality()
 {
     /* This feature is not supported with this interface */
     return -1;

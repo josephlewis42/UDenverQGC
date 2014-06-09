@@ -49,7 +49,7 @@ inline bool isinf(T value)
 {
     return (value == std::numeric_limits<T>::infinity() || (-1*value) == std::numeric_limits<T>::infinity()) && std::numeric_limits<T>::has_infinity;
 }
-#elif defined __APPLE__
+#else
 #include <cmath>
 #ifndef isnan
 #define isnan(x) std::isnan(x)
@@ -69,8 +69,6 @@ const QColor colorRed(154, 20, 20);
 const QColor colorGreen(20, 200, 20);
 const QColor colorYellow(255, 255, 0);
 const QColor colorOrange(255, 140, 0);
-const QColor colorMagenta(255, 0, 55);
-const QColor colorDarkWhite(240, 240, 240);
 const QColor colorDarkYellow(180, 180, 0);
 const QColor colorBackground("#050508");
 const QColor colorBlack(0, 0, 0);
@@ -79,8 +77,6 @@ const QColor colorBlack(0, 0, 0);
 quint64 groundTimeUsecs();
 /** @brief Get the current ground time in milliseconds */
 quint64 groundTimeMilliseconds();
-/** @brief Get the current ground time in seconds */
-qreal groundTimeSeconds();
 /** @brief Returns the angle limited to -pi - pi */
 float limitAngleToPMPIf(float angle);
 /** @brief Returns the angle limited to -pi - pi */

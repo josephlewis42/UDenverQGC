@@ -64,15 +64,18 @@ public:
     ~HDDisplay();
 
 public slots:
-    /** @brief Update the HDD with new data */
-    void updateValue(const int uasId, const QString& name, const QString& unit, const QVariant &value, const quint64 msec);
-	
+    /** @brief Update a HDD double value */
+    void updateValue(const int uasId, const QString& name, const QString& unit, const double value, const quint64 msec);
+    /** @brief Update a HDD integer value */
+    void updateValue(const int uasId, const QString& name, const QString& unit, const int value, const quint64 msec);
+    /** @brief Update a HDD integer value */
+    void updateValue(const int uasId, const QString& name, const QString& unit, const unsigned int value, const quint64 msec);
+    /** @brief Update a HDD integer value */
+    void updateValue(const int uasId, const QString& name, const QString& unit, const qint64 value, const quint64 msec);
+    /** @brief Update a HDD integer value */
+    void updateValue(const int uasId, const QString& name, const QString& unit, const quint64 value, const quint64 msec);
     virtual void setActiveUAS(UASInterface* uas);
-	
-	/** @brief Connects a source to the updateValue() signals */
     void addSource(QObject* obj);
-	/** @brief Disconnects a source to the updateValue() signals */
-    void removeSource(QObject* obj);
 
     /** @brief Removes a plot item by the action data */
     void removeItemByAction();

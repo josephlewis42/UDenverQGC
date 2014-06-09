@@ -64,23 +64,12 @@ void msgHandler( QtMsgType type, const char* msg )
 
 int main(int argc, char *argv[])
 {
+
 // install the message handler
 #ifdef Q_OS_WIN
     qInstallMsgHandler( msgHandler );
 #endif
 
-    QGCCore* core = NULL;
-    int val;
-    bool firstStart = true;
-
-    do {
-        if (core) {
-            delete core;
-            firstStart = false;
-        }
-        core = new QGCCore(firstStart, argc, argv);
-        val = core->exec();
-    } while (core->getRestartRequested());
-
-    return val;
+    QGCCore core(argc, argv);
+    return core.exec();
 }

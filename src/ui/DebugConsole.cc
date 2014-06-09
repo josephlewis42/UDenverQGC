@@ -30,7 +30,6 @@ This file is part of the QGROUNDCONTROL project
  */
 #include <QPainter>
 #include <QSettings>
-#include <QScrollBar>
 
 #include "DebugConsole.h"
 #include "ui_DebugConsole.h"
@@ -50,12 +49,9 @@ DebugConsole::DebugConsole(QWidget *parent) :
     autoHold(true),
     bytesToIgnore(0),
     lastByte(-1),
-    escReceived(false),
-    escIndex(0),
     sentBytes(),
     holdBuffer(),
     lineBuffer(""),
-    lastLineBuffer(0),
     lineBufferTimer(),
     snapShotTimer(),
     snapShotInterval(500),
@@ -78,13 +74,12 @@ DebugConsole::DebugConsole(QWidget *parent) :
     m_ui->receiveText->setMaximumBlockCount(500);
     // Allow to wrap everywhere
     m_ui->receiveText->setWordWrapMode(QTextOption::WrapAnywhere);
-//    // Set monospace font
-//    m_ui->receiveText->setFontFamily("Monospace");
 
     // Enable 10 Hz output
     //connect(&lineBufferTimer, SIGNAL(timeout()), this, SLOT(showData()));
     //lineBufferTimer.setInterval(100); // 100 Hz
     //lineBufferTimer.start();
+
     loadSettings();
 
     // Enable traffic measurements
@@ -94,23 +89,14 @@ DebugConsole::DebugConsole(QWidget *parent) :
     // Update measurements the first time
     updateTrafficMeasurements();
 
-    // First connect management slots, then make sure to add all existing objects
-    // Connect to link manager to get notified about new links
-    connect(LinkManager::instance(), SIGNAL(newLink(LinkInterface*)), this, SLOT(addLink(LinkInterface*)));
-    // Connect to UAS manager to get notified about new UAS
-    connect(UASManager::instance(), SIGNAL(UASCreated(UASInterface*)), this, SLOT(uasCreated(UASInterface*)));
-
     // Get a list of all existing links
     links = QList<LinkInterface*>();
     foreach (LinkInterface* link, LinkManager::instance()->getLinks()) {
         addLink(link);
     }
 
-    // Get a list of all existing UAS
-    foreach (UASInterface* uas, UASManager::instance()->getUASList()) {
-        uasCreated(uas);
-    }
-
+    // Connect to link manager to get notified about new links
+    connect(LinkManager::instance(), SIGNAL(newLink(LinkInterface*)), this, SLOT(addLink(LinkInterface*)));
     // Connect link combo box
     connect(m_ui->linkComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(linkSelected(int)));
     // Connect send button
@@ -179,12 +165,6 @@ void DebugConsole::storeSettings()
     //qDebug() << "Storing settings!";
 }
 
-void DebugConsole::uasCreated(UASInterface* uas)
-{
-    connect(uas, SIGNAL(textMessageReceived(int,int,int,QString)),
-            this, SLOT(receiveTextMessage(int,int,int,QString)), Qt::UniqueConnection);
-}
-
 /**
  * Add a link to the debug console output
  */
@@ -199,8 +179,8 @@ void DebugConsole::addLink(LinkInterface* link)
     linkSelected(m_ui->linkComboBox->currentIndex());
 
     // Register for name changes
-    connect(link, SIGNAL(nameChanged(QString)), this, SLOT(updateLinkName(QString)), Qt::UniqueConnection);
-    connect(link, SIGNAL(deleteLink(LinkInterface* const)), this, SLOT(removeLink(LinkInterface* const)), Qt::UniqueConnection);
+    connect(link, SIGNAL(nameChanged(QString)), this, SLOT(updateLinkName(QString)));
+    connect(link, SIGNAL(deleteLink(LinkInterface* const)), this, SLOT(removeLink(LinkInterface* const)));
 }
 
 void DebugConsole::removeLink(LinkInterface* const linkInterface)
@@ -216,13 +196,6 @@ void DebugConsole::removeLink(LinkInterface* const linkInterface)
     }
     if (linkInterface == currLink) currLink = NULL;
 }
-void DebugConsole::linkStatusUpdate(const QString& name,const QString& text)
-{
-    Q_UNUSED(name);
-    m_ui->receiveText->appendPlainText(text);
-    // Ensure text area scrolls correctly
-    m_ui->receiveText->ensureCursorVisible();
-}
 
 void DebugConsole::linkSelected(int linkId)
 {
@@ -230,7 +203,6 @@ void DebugConsole::linkSelected(int linkId)
     if (currLink) {
         disconnect(currLink, SIGNAL(bytesReceived(LinkInterface*,QByteArray)), this, SLOT(receiveBytes(LinkInterface*, QByteArray)));
         disconnect(currLink, SIGNAL(connected(bool)), this, SLOT(setConnectionState(bool)));
-        disconnect(currLink,SIGNAL(communicationUpdate(QString,QString)),this,SLOT(linkStatusUpdate(QString,QString)));
     }
     // Clear data
     m_ui->receiveText->clear();
@@ -239,7 +211,6 @@ void DebugConsole::linkSelected(int linkId)
     currLink = links[linkId];
     connect(currLink, SIGNAL(bytesReceived(LinkInterface*,QByteArray)), this, SLOT(receiveBytes(LinkInterface*, QByteArray)));
     connect(currLink, SIGNAL(connected(bool)), this, SLOT(setConnectionState(bool)));
-    connect(currLink,SIGNAL(communicationUpdate(QString,QString)),this,SLOT(linkStatusUpdate(QString,QString)));
     setConnectionState(currLink->isConnected());
 }
 
@@ -314,15 +285,9 @@ void DebugConsole::receiveTextMessage(int id, int component, int severity, QStri
             break;
         }
 
-        //turn off updates while we're appending content to avoid breaking the autoscroll behavior
-        m_ui->receiveText->setUpdatesEnabled(false);
-        QScrollBar *scroller = m_ui->receiveText->verticalScrollBar();
-
         m_ui->receiveText->appendHtml(QString("<font color=\"%1\">(%2:%3) %4</font>\n").arg(UASManager::instance()->getUASForId(id)->getColor().name(), name, comp, text));
-
         // Ensure text area scrolls correctly
-        scroller->setValue(scroller->maximum());
-        m_ui->receiveText->setUpdatesEnabled(true);
+        m_ui->receiveText->ensureCursorVisible();
     }
 }
 
@@ -427,65 +392,20 @@ void DebugConsole::receiveBytes(LinkInterface* link, QByteArray bytes)
                 // Convert to ASCII for readability
                 if (convertToAscii)
                 {
-                    if (escReceived)
-                    {
-                        if (escIndex < static_cast<int>(sizeof(escBytes)))
-                        {
-                            escBytes[escIndex] = byte;
-                            //qDebug() << "GOT BYTE ESC:" << byte;
-                            if (/*escIndex == 1 && */escBytes[escIndex] == 0x48)
-                            {
-                                // Handle sequence
-                                // for this one, clear all text
-                                m_ui->receiveText->clear();
-                                escReceived = false;
-                            }
-                            else if (/*escIndex == 1 && */escBytes[escIndex] == 0x4b)
-                            {
-                                // Handle sequence
-                                // for this one, do nothing
-                                escReceived = false;
-                            }
-                            else if (byte == 0x5b)
-                            {
-                                // Do nothing, this is still a valid escape sequence
-                            }
-                            else
-                            {
-                                escReceived = false;
-                            }
-                         }
-                        else
-                        {
-                            // Obviously something went wrong, reset
-                            escReceived = false;
-                            escIndex = 0;
-                        }
-                    }
-                    else if ((byte <= 32) || (byte > 126))
+                    if ((byte <= 32) || (byte > 126))
                     {
                         switch (byte)
                         {
                             case (unsigned char)'\n':   // Accept line feed
-                                if (lastByte != '\r')   // Do not break line again for LF+CR
+                                if (lastByte != '\r')   // Do not break line again for CR+LF
                                     str.append(byte);   // only break line for single LF or CR bytes
                             break;
                             case (unsigned char)' ':    // space of any type means don't add another on hex output
                             case (unsigned char)'\t':   // Accept tab
                             case (unsigned char)'\r':   // Catch and carriage return
-                                if (lastByte != '\n')   // Do not break line again for CR+LF
-                                str.append(byte);       // only break line for single LF or CR bytes
+                                str.append(byte);
                                 lastSpace = 1;
                             break;
-                            /* VT100 emulation (partially */
-                            case 0x1b:                  // ESC received
-                                escReceived = true;
-                                escIndex = 0;
-                                //qDebug() << "GOT ESC";
-                                break;
-                            case 0x08:                  // BS (backspace) received
-                                // Do nothing for now
-                                break;
                             default:                    // Append replacement character (box) if char is not ASCII
 //                                str.append(QChar(QChar::ReplacementCharacter));
                                 QString str2;
@@ -494,15 +414,12 @@ void DebugConsole::receiveBytes(LinkInterface* link, QByteArray bytes)
                                 else str2.sprintf(" 0x%02x ", byte);
                                 str.append(str2);
                                 lastSpace = 1;
-                                escReceived = false;
                             break;
                         }
                     }
                     else
                     {
-                        // Ignore carriage return, because that
-                        // is auto-added with '\n'
-                        if (byte != '\r') str.append(byte);           // Append original character
+                        str.append(byte);           // Append original character
                         lastSpace = 0;
                     }
                 }
@@ -523,20 +440,14 @@ void DebugConsole::receiveBytes(LinkInterface* link, QByteArray bytes)
             }
 
         }
-        // Plot every 200 ms if windows is visible
-        if (lineBuffer.length() > 0 && (QGC::groundTimeMilliseconds() - lastLineBuffer) > 200) {
+        if (lineBuffer.length() > 0) {
             if (isVisible())
             {
-                m_ui->receiveText->appendPlainText(lineBuffer);
-                lineBuffer.clear();
-                lastLineBuffer = QGC::groundTimeMilliseconds();
+                m_ui->receiveText->insertPlainText(lineBuffer);
                 // Ensure text area scrolls correctly
                 m_ui->receiveText->ensureCursorVisible();
             }
-            if (lineBuffer.size() > 8192)
-            {
-                lineBuffer.remove(0, 4096);
-            }
+            lineBuffer.clear();
         }
     }
     else if (link == currLink && holdOn)
@@ -587,7 +498,7 @@ QString DebugConsole::bytesToSymbolNames(const QByteArray& b)
     } else if (b.contains(0x09)) {
         text = "<TAB>";
     } else if (b.contains((char)0x00)) {
-        text = "<NUL>";
+        text == "<NUL>";
     } else if (b.contains(0x1B)) {
         text = "<ESC>";
     } else if (b.contains(0x7E)) {
@@ -696,7 +607,7 @@ void DebugConsole::sendBytes()
         str.append(specialSymbol);
         str.remove(' ');
         str.remove("0x");
-        str = str.simplified();
+        str.simplified();
         int bufferIndex = 0;
         if ((str.size() % 2) == 0) {
             for (int i = 0; i < str.size(); i=i+2) {

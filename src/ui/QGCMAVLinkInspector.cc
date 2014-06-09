@@ -18,35 +18,31 @@ QGCMAVLinkInspector::QGCMAVLinkInspector(MAVLinkProtocol* protocol, QWidget *par
 {
     ui->setupUi(this);
 
-    // Make sure "All" is an option for both the system and components
-    ui->systemComboBox->addItem(tr("All"), 0);
-    ui->componentComboBox->addItem(tr("All"), 0);
+    /* Insert system */
+    ui->systemComboBox->addItem(tr("All Systems"), 0);
+    ui->componentComboBox->addItem(tr("All Components"), 0);
 
-	// Store metadata for all MAVLink messages.
-	mavlink_message_info_t msg_infos[256] = MAVLINK_MESSAGE_INFO;
-	memcpy(messageInfo, msg_infos, sizeof(mavlink_message_info_t)*256);
+    mavlink_message_info_t msg[256] = MAVLINK_MESSAGE_INFO;
+    memcpy(messageInfo, msg, sizeof(mavlink_message_info_t)*256);
+    memset(receivedMessages, 0, sizeof(mavlink_message_t)*256);
 
-	// Initialize the received data for all messages to invalid (0xFF)
-    memset(receivedMessages, 0xFF, sizeof(mavlink_message_t)*256);
-
-	// Set up the column headers for the message listing
+    connect(protocol, SIGNAL(messageReceived(LinkInterface*,mavlink_message_t)), this, SLOT(receiveMessage(LinkInterface*,mavlink_message_t)));
     QStringList header;
     header << tr("Name");
     header << tr("Value");
     header << tr("Type");
     ui->treeWidget->setHeaderLabels(header);
+    connect(&updateTimer, SIGNAL(timeout()), this, SLOT(refreshView()));
 
-    // Connect the UI
+
+    // ARM UI
     connect(ui->systemComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(selectDropDownMenuSystem(int)));
     connect(ui->componentComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(selectDropDownMenuComponent(int)));
-    connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clearView()));
 
-    // Connect external connections
+    // ARM external connections
     connect(UASManager::instance(), SIGNAL(UASCreated(UASInterface*)), this, SLOT(addSystem(UASInterface*)));
-    connect(protocol, SIGNAL(messageReceived(LinkInterface*,mavlink_message_t)), this, SLOT(receiveMessage(LinkInterface*,mavlink_message_t)));
 
-    // Attach the UI's refresh rate to a timer.
-    connect(&updateTimer, SIGNAL(timeout()), this, SLOT(refreshView()));
+    // Start
     updateTimer.start(updateInterval);
 }
 
@@ -93,26 +89,13 @@ void QGCMAVLinkInspector::addComponent(int uas, int component, const QString& na
     rebuildComponentList();
 }
 
-/**
- * Reset the view. This entails clearing all data structures and resetting data from already-
- * received messages.
- */
-void QGCMAVLinkInspector::clearView()
-{
-    memset(receivedMessages, 0xFF, sizeof(mavlink_message_t)*256);
-	lastMessageUpdate.clear();
-	messagesHz.clear();
-    treeWidgetItems.clear();
-    ui->treeWidget->clear();
-}
-
 void QGCMAVLinkInspector::refreshView()
 {
     for (int i = 0; i < 256; ++i)//mavlink_message_t msg, receivedMessages)
     {
         mavlink_message_t* msg = receivedMessages+i;
         // Ignore NULL values
-        if (msg->msgid == 0xFF) continue;
+        if (!msg) continue;
         // Update the tree view
         QString messageName("%1 (%2 Hz, #%3)");
         float msgHz = (1.0f-updateHzLowpass)*messagesHz.value(msg->msgid, 0) + updateHzLowpass*((float)messageCount.value(msg->msgid, 0))/((float)updateInterval/1000.0f);

@@ -36,16 +36,20 @@
 
 #include "HUDScaleGeode.h"
 #include "Imagery.h"
+#include "ImageWindowGeode.h"
+#include "WaypointGroupNode.h"
+#ifdef QGC_PROTOBUF_ENABLED
+    #include "ObstacleGroupNode.h"
+#endif
+
 #include "Q3DWidget.h"
-#include "SystemContainer.h"
-#include "ViewParamWidget.h"
 
 class UASInterface;
 
 /**
  * @brief A 3D View widget which displays vehicle-centric information.
  **/
-class Pixhawk3DWidget : public QWidget
+class Pixhawk3DWidget : public Q3DWidget
 {
     Q_OBJECT
 
@@ -54,33 +58,18 @@ public:
     ~Pixhawk3DWidget();
 
 public slots:
-    void activeSystemChanged(UASInterface* uas);
-    void systemCreated(UASInterface* uas);
-    void localPositionChanged(UASInterface* uas, int component, double x, double y, double z, quint64 time);
-    void localPositionChanged(UASInterface* uas, double x, double y, double z, quint64 time);
-    void attitudeChanged(UASInterface* uas, int component, double roll, double pitch, double yaw, quint64 time);
-    void attitudeChanged(UASInterface* uas, double roll, double pitch, double yaw, quint64 time);
-    void homePositionChanged(int uasId, double lat, double lon, double alt);
-    void setpointChanged(int uasId, float x, float y, float z, float yaw);
-
-signals:
-    void systemCreatedSignal(UASInterface* uas);
-    void overlayCreatedSignal(int systemId, const QString& name);
+    void setActiveUAS(UASInterface* uas);
 
 private slots:
-    void clearData(void);
-    void showTerrainParamWindow(void);
-    void showViewParamWindow(void);
-    void followCameraChanged(int systemId);
-    void imageryParamsChanged(void);
-    void recenterActiveCamera(void);
-    void modelChanged(int systemId, int index);
-    void setBirdEyeView(void);
-    void loadTerrainModel(void);
-
-#if defined(QGC_PROTOBUF_ENABLED) && defined(QGC_USE_PIXHAWK_MESSAGES)
-    void addOverlay(UASInterface* uas);
-#endif
+    void selectFrame(QString text);
+    void showLocalGrid(int state);
+    void showWorldGrid(int state);
+    void showTrail(int state);
+    void showWaypoints(int state);
+    void selectMapSource(int index);
+    void selectVehicleModel(int index);
+    void recenter(void);
+    void toggleFollowCamera(int state);
 
     void selectTargetHeading(void);
     void selectTarget(void);
@@ -92,139 +81,112 @@ private slots:
     void setWaypointAltitude(void);
     void clearAllWaypoints(void);
 
-    void moveImagery(void);
-    void moveTerrain(void);
-    void rotateTerrain(void);
-
-    void sizeChanged(int width, int height);
-    void update(void);
-
 protected:
-    void addModels(QVector< osg::ref_ptr<osg::Node> >& models,
-                   const QColor& systemColor);
+    QVector< osg::ref_ptr<osg::Node> > findVehicleModels(void);
     void buildLayout(void);
+    virtual void resizeGL(int width, int height);
+    virtual void display(void);
+    virtual void keyPressEvent(QKeyEvent* event);
+    virtual void mousePressEvent(QMouseEvent* event);
+    virtual void showEvent(QShowEvent* event);
+    virtual void hideEvent(QHideEvent* event);
+    virtual void mouseMoveEvent(QMouseEvent* event);
 
-    void keyPressEvent(QKeyEvent* event);
-    void keyReleaseEvent(QKeyEvent* event);
-    void mousePressEvent(QMouseEvent* event);
-    void mouseReleaseEvent(QMouseEvent* event);
-    void mouseMoveEvent(QMouseEvent* event);
-    void wheelEvent(QWheelEvent* event);
-
-    void showEvent(QShowEvent* event);
-    void hideEvent(QHideEvent* event);
+    UASInterface* uas;
 
 signals:
     void visibilityChanged(bool visible);
 
 private:
-    void initializeSystem(int systemId, const QColor& systemColor);
-
-    void getPose(UASInterface* uas,
-                 MAV_FRAME frame,
-                 double& x, double& y, double& z,
+    void getPose(double& x, double& y, double& z,
                  double& roll, double& pitch, double& yaw,
-                 QString& utmZone) const;
-    void getPose(UASInterface* uas,
-                 MAV_FRAME frame,
-                 double& x, double& y, double& z,
-                 double& roll, double& pitch, double& yaw) const;
-    void getPosition(UASInterface* uas,
-                     MAV_FRAME frame,
-                     double& x, double& y, double& z,
-                     QString& utmZone) const;
-    void getPosition(UASInterface* uas,
-                     MAV_FRAME frame,
-                     double& x, double& y, double& z) const;
+                 QString& utmZone);
+    void getPose(double& x, double& y, double& z,
+                 double& roll, double& pitch, double& yaw);
+    void getPosition(double& x, double& y, double& z,
+                     QString& utmZone);
+    void getPosition(double& x, double& y, double& z);
 
     osg::ref_ptr<osg::Geode> createLocalGrid(void);
     osg::ref_ptr<osg::Geode> createWorldGrid(void);
-    osg::ref_ptr<osg::Geometry> createTrail(const osg::Vec4& color);
-    osg::ref_ptr<osg::Geometry> createLink(const QColor& color);
-    osg::ref_ptr<Imagery> createImagery(void);
-    osg::ref_ptr<osg::Geode> createPointCloud(void);
-    osg::ref_ptr<osg::Node> createTarget(const QColor& color);
+    osg::ref_ptr<osg::Geode> createTrail(const osg::Vec4& color);
+    osg::ref_ptr<Imagery> createMap(void);
+    osg::ref_ptr<osg::Geode> createRGBD3D(void);
+    osg::ref_ptr<osg::Node> createTarget(void);
 
     void setupHUD(void);
-    void resizeHUD(int width, int height);
+    void resizeHUD(void);
 
-    void updateHUD(UASInterface* uas, MAV_FRAME frame);
-    void updateImagery(double originX, double originY,
-                       const QString& zone, MAV_FRAME frame);
-    void updateTarget(UASInterface* uas, MAV_FRAME frame,
-                      double robotX, double robotY, double robotZ,
-                      QVector4D& target,
-                      osg::ref_ptr<osg::Node>& targetNode);
-    void updateTrails(double robotX, double robotY, double robotZ,
-                      osg::ref_ptr<osg::Geode>& trailNode,
-                      osg::ref_ptr<osg::Group>& orientationNode,
-                      QMap<int, QVector<osg::Vec3d> >& trailMap,
-                      QMap<int, int>& trailIndexMap);
-    void updateWaypoints(UASInterface* uas, MAV_FRAME frame,
-                         osg::ref_ptr<WaypointGroupNode>& waypointGroupNode);
-#if defined(QGC_PROTOBUF_ENABLED) && defined(QGC_USE_PIXHAWK_MESSAGES)
-    void updateRGBD(UASInterface* uas, MAV_FRAME frame,
-                    osg::ref_ptr<ImageWindowGeode>& rgbImageNode,
-                    osg::ref_ptr<ImageWindowGeode>& depthImageNode);
-    void updatePointCloud(UASInterface* uas, MAV_FRAME frame,
-                          double robotX, double robotY, double robotZ,
-                          osg::ref_ptr<osg::Geode>& pointCloudNode,
-                          bool colorPointCloudByDistance);
-    void updateObstacles(UASInterface* uas, MAV_FRAME frame,
-                         double robotX, double robotY, double robotZ,
-                         osg::ref_ptr<ObstacleGroupNode>& obstacleGroupNode);
-    void updatePlannedPath(UASInterface* uas, MAV_FRAME frame,
-                           double robotX, double robotY, double robotZ,
-                           osg::ref_ptr<osg::Geode>& plannedPathNode);
+    void updateHUD(double robotX, double robotY, double robotZ,
+                   double robotRoll, double robotPitch, double robotYaw,
+                   const QString& utmZone);
+    void updateTrail(double robotX, double robotY, double robotZ);
+    void updateImagery(double originX, double originY, double originZ,
+                       const QString& zone);
+    void updateWaypoints(void);
+    void updateTarget(double robotX, double robotY);
+#ifdef QGC_PROTOBUF_ENABLED
+    void updateRGBD(double robotX, double robotY, double robotZ);
+    void updateObstacles(void);
+    void updatePath(double robotX, double robotY, double robotZ);
 #endif
 
     int findWaypoint(const QPoint& mousePos);
     bool findTarget(int mouseX, int mouseY);
-    bool findTerrain(const QPoint& mousePos);
     void showInsertWaypointMenu(const QPoint& cursorPos);
     void showEditWaypointMenu(const QPoint& cursorPos);
-    void showTerrainMenu(const QPoint& cursorPos);
-
-    const qreal kMessageTimeout; // message timeout in seconds
 
     enum Mode {
         DEFAULT_MODE,
         MOVE_WAYPOINT_POSITION_MODE,
         MOVE_WAYPOINT_HEADING_MODE,
-        SELECT_TARGET_HEADING_MODE,
-        MOVE_TERRAIN_MODE,
-        ROTATE_TERRAIN_MODE,
-        MOVE_IMAGERY_MODE
+        SELECT_TARGET_HEADING_MODE
     };
-    Mode mMode;
-    int mSelectedWpIndex;
+    Mode mode;
+    int selectedWpIndex;
 
-    int mActiveSystemId;
-    UASInterface* mActiveUAS;
+    bool displayLocalGrid;
+    bool displayWorldGrid;
+    bool displayTrail;
+    bool displayImagery;
+    bool displayWaypoints;
+    bool displayRGBD2D;
+    bool displayRGBD3D;
+    bool displayObstacleList;
+    bool displayPath;
+    bool enableRGBDColor;
+    bool enableTarget;
 
-    GlobalViewParamsPtr mGlobalViewParams;
+    bool followCamera;
 
-    // maps system id to system-specific view parameters
-    QMap<int, SystemViewParamsPtr> mSystemViewParamMap;
+    QVarLengthArray<osg::Vec3d, 10000> trail;
 
-    // maps system id to system-specific data
-    QMap<int, SystemContainer> mSystemContainerMap;
+    osg::ref_ptr<osg::Node> vehicleModel;
+    osg::ref_ptr<osg::Geometry> hudBackgroundGeometry;
+    osg::ref_ptr<osgText::Text> statusText;
+    osg::ref_ptr<HUDScaleGeode> scaleGeode;
+    osg::ref_ptr<ImageWindowGeode> rgb2DGeode;
+    osg::ref_ptr<ImageWindowGeode> depth2DGeode;
+    osg::ref_ptr<osg::Image> rgbImage;
+    osg::ref_ptr<osg::Image> depthImage;
+    osg::ref_ptr<osg::Geode> localGridNode;
+    osg::ref_ptr<osg::Geode> worldGridNode;
+    osg::ref_ptr<osg::Geode> trailNode;
+    osg::ref_ptr<Imagery> mapNode;
+    osg::ref_ptr<WaypointGroupNode> waypointGroupNode;
+    osg::ref_ptr<osg::Node> targetNode;
+    osg::ref_ptr<osg::Geode> rgbd3DNode;
+#ifdef QGC_PROTOBUF_ENABLED
+    osg::ref_ptr<ObstacleGroupNode> obstacleGroupNode;
+    osg::ref_ptr<osg::Geode> pathNode;
+#endif
 
-    osg::ref_ptr<osg::Geometry> mHudBackgroundGeometry;
-    osg::ref_ptr<Imagery> mImageryNode;
-    osg::ref_ptr<HUDScaleGeode> mScaleGeode;
-    osg::ref_ptr<osgText::Text> mStatusText;
-    osg::ref_ptr<osg::Node> mTerrainNode;
-    osg::ref_ptr<osg::PositionAttitudeTransform> mTerrainPAT;
-    osg::ref_ptr<osg::Geode> mWorldGridNode;
+    QVector< osg::ref_ptr<osg::Node> > vehicleModels;
 
-    QPoint mCachedMousePos;
-    int mFollowCameraId;
-    QVector3D mCameraPos;
-    bool mInitCameraPos;
-
-    Q3DWidget* m3DWidget;
-    ViewParamWidget* mViewParamWidget;
+    MAV_FRAME frame;
+    osg::Vec3d target;
+    QPoint cachedMousePos;
+    double lastRobotX, lastRobotY, lastRobotZ;
 };
 
 #endif // PIXHAWK3DWIDGET_H

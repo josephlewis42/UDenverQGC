@@ -1,6 +1,5 @@
 #include <QMenu>
 #include <QContextMenuEvent>
-#include <QSettings>
 
 #include "QGCRGBDView.h"
 #include "UASManager.h"
@@ -22,70 +21,20 @@ QGCRGBDView::QGCRGBDView(int width, int height, QWidget *parent) :
     enableDepthAction->setChecked(depthEnabled);
     connect(enableDepthAction, SIGNAL(triggered(bool)), this, SLOT(enableDepth(bool)));
 
-    connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(setActiveUAS(UASInterface*)));
-
-    clearData();
-    loadSettings();
+    connect(UASManager::instance(), SIGNAL(UASCreated(UASInterface*)), this, SLOT(addUAS(UASInterface*)));
 }
 
-QGCRGBDView::~QGCRGBDView()
+void QGCRGBDView::addUAS(UASInterface *uas)
 {
-    storeSettings();
+    // TODO Enable multi-uas support
+    connect(uas, SIGNAL(rgbdImageChanged(UASInterface*)), this, SLOT(updateData(UASInterface*)));
 }
 
-void QGCRGBDView::storeSettings()
-{
-    QSettings settings;
-    settings.beginGroup("QGC_RGBDWIDGET");
-    settings.setValue("STREAM_RGB_ON", rgbEnabled);
-    settings.setValue("STREAM_DEPTH_ON", depthEnabled);
-    settings.endGroup();
-    settings.sync();
-}
-
-void QGCRGBDView::loadSettings()
-{
-    QSettings settings;
-    settings.beginGroup("QGC_RGBDWIDGET");
-    rgbEnabled = settings.value("STREAM_RGB_ON", rgbEnabled).toBool();
-    // Only enable depth if RGB is not on
-    if (!rgbEnabled) depthEnabled = settings.value("STREAM_DEPTH_ON", depthEnabled).toBool();
-    settings.endGroup();
-}
-
-void QGCRGBDView::setActiveUAS(UASInterface* uas)
-{
-    if (this->uas != NULL)
-    {
-        // Disconnect any previously connected active MAV
-        disconnect(this->uas, SIGNAL(rgbdImageChanged(UASInterface*)), this, SLOT(updateData(UASInterface*)));
-
-        clearData();
-    }
-
-    if (uas)
-    {
-        // Now connect the new UAS
-        // Setup communication
-        connect(uas, SIGNAL(rgbdImageChanged(UASInterface*)), this, SLOT(updateData(UASInterface*)));
-    }
-
-    HUD::setActiveUAS(uas);
-}
-
-void QGCRGBDView::clearData(void)
-{
-    QImage offlineImg;
-    qDebug() << offlineImg.load(":/files/images/status/colorbars.png");
-
-    glImage = offlineImg;
-}
-
-void QGCRGBDView::contextMenuEvent(QContextMenuEvent* event)
+void QGCRGBDView::contextMenuEvent (QContextMenuEvent* event)
 {
     QMenu menu(this);
     // Update actions
-    enableHUDAction->setChecked(HUDInstrumentsEnabled);
+    enableHUDAction->setChecked(hudInstrumentsEnabled);
     //enableVideoAction->setChecked(videoEnabled);
     enableRGBAction->setChecked(rgbEnabled);
     enableDepthAction->setChecked(depthEnabled);
@@ -104,14 +53,14 @@ void QGCRGBDView::enableRGB(bool enabled)
 {
     rgbEnabled = enabled;
     dataStreamEnabled = rgbEnabled | depthEnabled;
-    QWidget::resize(size().width(), size().height());
+    resize(size());
 }
 
 void QGCRGBDView::enableDepth(bool enabled)
 {
     depthEnabled = enabled;
     dataStreamEnabled = rgbEnabled | depthEnabled;
-    QWidget::resize(size().width(), size().height());
+    resize(size());
 }
 
 float colormapJet[128][3] = {
@@ -247,7 +196,7 @@ float colormapJet[128][3] = {
 
 void QGCRGBDView::updateData(UASInterface *uas)
 {
-#if defined(QGC_PROTOBUF_ENABLED) && defined(QGC_USE_PIXHAWK_MESSAGES)
+#ifdef QGC_PROTOBUF_ENABLED
     px::RGBDImage rgbdImage = uas->getRGBDImage();
 
     if (rgbdImage.rows() == 0 || rgbdImage.cols() == 0 || (!rgbEnabled && !depthEnabled))
@@ -299,7 +248,7 @@ void QGCRGBDView::updateData(UASInterface *uas)
             {
                 if (depth[c] != 0)
                 {
-                    int idx = fminf(depth[c], 10.0f) / 10.0f * 127.0f;
+                    int idx = fminf(depth[c], 7.0f) / 7.0f * 127.0f;
                     idx = 127 - idx;
 
                     pixel[0] = colormapJet[idx][2] * 255.0f;

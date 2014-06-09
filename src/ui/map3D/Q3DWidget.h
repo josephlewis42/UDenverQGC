@@ -41,9 +41,7 @@ This file is part of the QGROUNDCONTROL project
 #include <osgText/Font>
 #include <osgViewer/Viewer>
 
-#include "CameraParams.h"
 #include "GCManipulator.h"
-#include "SystemGroupNode.h"
 
 /**
  * @brief Definition of the class Q3DWidget.
@@ -99,27 +97,9 @@ public:
     void recenterCamera(double x, double y, double z);
 
     /**
-      * @brief Rotates the camera.
-      */
-    void rotateCamera(double roll, double pitch, double yaw);
-
-    /**
-      * @brief Sets the camera distance.
-      */
-    void setCameraDistance(double distance);
-
-    /**
      * @brief Sets up 3D display mode.
      */
     void setDisplayMode3D(void);
-
-    osg::ref_ptr<osg::Switch>& hudGroup(void);
-
-    /**
-     * @brief Get screen coordinates of mouse cursor.
-     * @return screen coordinates of mouse cursor.
-     */
-    QPoint mouseCursorCoords(void);
 
     /**
      * @brief Gets the world 3D coordinates of the cursor.
@@ -128,33 +108,12 @@ public:
      * which contains the point (0, 0, z);
      * @param cursorX x-coordinate of the cursor.
      * @param cursorY y-coordinate of the cursor.
-     * @param worldZ z-coordinate of the point in the plane.
-     * @return World (x,y) cursor coordinates.
+     * @param z z-coordinate of the point in the plane.
+     * @return A pair of values containing the world 3D cursor coordinates.
      */
-     QPointF worldCursorPosition(const QPoint& cursorPos, double worldZ) const;
-
-     CameraParams& cameraParams(void);
-
-     osg::ref_ptr<GCManipulator>& cameraManipulator(void);
-
-     osg::ref_ptr<osgText::Font>& font(void);
-
-     osg::ref_ptr<osg::Switch>& worldMap(void);
-     osg::ref_ptr<SystemGroupNode>& systemGroup(int systemId);
-
-     bool& handleDeviceEvents(void);
-
-     void handleKeyPressEvent(QKeyEvent* event);
-
-     void handleKeyReleaseEvent(QKeyEvent* event);
-
-     void handleMousePressEvent(QMouseEvent* event);
-
-     void handleMouseReleaseEvent(QMouseEvent* event);
-
-     void handleMouseMoveEvent(QMouseEvent* event);
-
-     void handleWheelEvent(QWheelEvent* event);
+    std::pair<double,double> getGlobalCursorPosition(int32_t cursorX,
+            int32_t cursorY,
+            double z);
 
 protected slots:
     /**
@@ -162,58 +121,18 @@ protected slots:
      */
     void redraw(void);
 
-signals:
-    void sizeChanged(int width, int height);
-    void update(void);
-
 protected:
-    /**
-     * @brief Handle widget resize event.
-     * @param width New width of widget.
-     * @param height New height of widget.
-     */
-    virtual void resizeGL(int width, int height);
-
-    /**
-     * @brief Processes key press events.
-     * @param event Key press event.
-     */
-    virtual void keyPressEvent(QKeyEvent* event);
-
-    /**
-     * @brief Processes key release events.
-     * @param event Key release event.
-     */
-    virtual void keyReleaseEvent(QKeyEvent* event);
-
-    /**
-     * @brief Processes mouse press events.
-     * @param event Mouse press event.
-     */
-    virtual void mousePressEvent(QMouseEvent* event);
-
-    /**
-     * @brief Processes mouse release events.
-     * @param event Mouse release event.
-     */
-    virtual void mouseReleaseEvent(QMouseEvent* event);
-
-    /**
-     * @brief Processes mouse move events.
-     * @param event Mouse move event.
-     */
-    virtual void mouseMoveEvent(QMouseEvent* event);
-
-    /**
-     * @brief Processes mouse wheel events.
-     * @param event Mouse wheel event.
-     */
-    virtual void wheelEvent(QWheelEvent* event);
 
     /** @brief Start widget updating */
     void showEvent(QShowEvent* event);
     /** @brief Stop widget updating */
     void hideEvent(QHideEvent* event);
+
+    /**
+     * @brief Get base robot geode.
+     * @return Smart pointer to the geode.
+     */
+    osg::ref_ptr<osg::Geode> createRobot(void);
 
     /**
      * @brief Get base HUD geode.
@@ -222,9 +141,82 @@ protected:
     osg::ref_ptr<osg::Node> createHUD(void);
 
     /**
+     * @brief Get screen x-coordinate of mouse cursor.
+     * @return screen x-coordinate of mouse cursor.
+     */
+    int getMouseX(void);
+
+    /**
+     * @brief Get screen y-coordinate of mouse cursor.
+     * @return screen y-coordinate of mouse cursor.
+     */
+    int getMouseY(void);
+
+    /**
+     * @brief Handle widget resize event.
+     * @param width New width of widget.
+     * @param height New height of widget.
+     */
+    virtual void resizeGL(int width, int height);
+
+    /**
      * @brief Handle widget paint event.
      */
     virtual void paintGL(void);
+
+    /**
+     * @brief This function is a container for user-defined rendering.
+     * All code to render objects should be in this function.
+     */
+    virtual void display(void);
+
+    /**
+     * @brief Processes key press events.
+     * If this handler is reimplemented, it is very important that you call the
+     * base class implementation.
+     * @param event Key press event.
+     */
+    virtual void keyPressEvent(QKeyEvent* event);
+
+    /**
+     * @brief Processes key release events.
+     * If this handler is reimplemented, it is very important that you call the
+     * base class implementation.
+     * @param event Key release event.
+     */
+    virtual void keyReleaseEvent(QKeyEvent* event);
+
+    /**
+     * @brief Processes mouse press events.
+     * If this handler is reimplemented, it is very important that you call the
+     * base class implementation.
+     * @param event Mouse press event.
+     */
+    virtual void mousePressEvent(QMouseEvent* event);
+
+    /**
+     * @brief Processes mouse release events.
+     * If this handler is reimplemented, it is very important that you call the
+     * base class implementation.
+     * @param event Mouse release event.
+     */
+    virtual void mouseReleaseEvent(QMouseEvent* event);
+
+    /**
+     * @brief Processes mouse move events.
+     * If this handler is reimplemented, it is very important that you call the
+     * base class implementation.
+     * @param event Mouse move event.
+     */
+    virtual void mouseMoveEvent(QMouseEvent* event);
+
+    /**
+     * @brief Processes mouse wheel events.
+     * If this handler is reimplemented, it is very important that you call the
+     * base class implementation.
+     * @param event Mouse wheel event.
+     */
+    virtual void wheelEvent(QWheelEvent* event);
 
     /**
      * @brief Converts Qt-defined key to OSG-defined key.
@@ -239,29 +231,37 @@ protected:
      * @param line Line representation.
      * @return 3D point which lies at the intersection of the line and plane.
      */
-    bool planeLineIntersection(const osg::Vec4d& plane,
-                               const osg::LineSegment& line,
-                               osg::Vec3d& isect) const;
+    bool getPlaneLineIntersection(const osg::Vec4d& plane,
+                                  const osg::LineSegment& line,
+                                  osg::Vec3d& isect);
 
-    bool mHandleDeviceEvents;
+    osg::ref_ptr<osg::Group> root; /**< Root node of scene graph. */
+    osg::ref_ptr<osg::Switch> allocentricMap;
+    osg::ref_ptr<osg::Switch> rollingMap;
+    osg::ref_ptr<osg::Switch> egocentricMap;
+    osg::ref_ptr<osg::PositionAttitudeTransform> robotPosition;
+    osg::ref_ptr<osg::PositionAttitudeTransform> robotAttitude;
 
-    osg::ref_ptr<osg::Group> mRoot; /**< Root node of scene graph. */
-    osg::ref_ptr<osg::Switch> mWorldMap;
-    QMap<int, osg::ref_ptr<SystemGroupNode> > mSystemGroups;
+    osg::ref_ptr<osg::Switch> hudGroup; /**< A group which contains renderable HUD objects. */
+    osg::ref_ptr<osg::Projection> hudProjectionMatrix; /**< An orthographic projection matrix for HUD display. */
 
-    osg::ref_ptr<osg::Switch> mHudGroup; /**< A group which contains renderable HUD objects. */
-    osg::ref_ptr<osg::Projection> mHudProjectionMatrix; /**< An orthographic projection matrix for HUD display. */
+    osg::ref_ptr<osgViewer::GraphicsWindowEmbedded> osgGW; /**< A class which manages OSG graphics windows and events. */
 
-    osg::ref_ptr<osgViewer::GraphicsWindowEmbedded> mOsgGW; /**< A class which manages OSG graphics windows and events. */
+    osg::ref_ptr<GCManipulator> cameraManipulator; /**< Camera manipulator. */
 
-    osg::ref_ptr<GCManipulator> mCameraManipulator; /**< Camera manipulator. */
+    QTimer timer; /**< Timer which draws graphics based on specified fps. */
 
-    QTimer mTimer; /**< Timer which draws graphics based on specified fps. */
+    struct CameraParams {
+        float minZoomRange;
+        float cameraFov;
+        float minClipRange;
+        float maxClipRange;
+    };
 
-    CameraParams mCameraParams; /**< Struct representing camera parameters. */
-    float mFps;
+    CameraParams cameraParams; /**< Struct representing camera parameters. */
+    float fps;
 
-    osg::ref_ptr<osgText::Font> mFont;
+    osg::ref_ptr<osgText::Font> font;
 };
 
 #endif // Q3DWIDGET_H

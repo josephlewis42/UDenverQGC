@@ -26,7 +26,7 @@ This file is part of the PIXHAWK project
  *   @brief Definition of Line chart plot widget
  *
  *   @author Lorenz Meier <mavteam@student.ethz.ch>
- *   @author Thomas Gubler <thomasgubler@student.ethz.ch>
+ *
  */
 #ifndef LINECHARTWIDGET_H
 #define LINECHARTWIDGET_H
@@ -77,12 +77,18 @@ public slots:
     void recolor();
     /** @brief Set short names for curves */
     void setShortNames(bool enable);
-    /** @brief Append data to the given curve. */
-    void appendData(int uasId, const QString& curve, const QString& unit, const QVariant& value, quint64 usec);
-    /** @brief Hide curves which do not match the filter pattern */
-    void filterCurves(const QString &filter);
-
-    void toggleLogarithmicScaling(bool toggled);
+    /** @brief Append data without unit */
+    void appendData(int uasId, QString curve, double data, quint64 usec);
+    /** @brief Append data with unit */
+    void appendData(int uasId, const QString& curve, const QString& unit, double value, quint64 usec);
+    /** @brief Append data as int with unit */
+    void appendData(int uasId, const QString& curve, const QString& unit, int value, quint64 usec);
+    /** @brief Append data as unsigned int with unit */
+    void appendData(int uasId, const QString& curve, const QString& unit, unsigned int value, quint64 usec);
+    /** @brief Append data as int64 with unit */
+    void appendData(int uasId, const QString& curve, const QString& unit, qint64 value, quint64 usec);
+    /** @brief Append data as uint64 with unit */
+    void appendData(int uasId, const QString& curve, const QString& unit, quint64 value, quint64 usec);
     void takeButtonClick(bool checked);
     void setPlotWindowPosition(int scrollBarValue);
     void setPlotWindowPosition(quint64 position);
@@ -92,8 +98,11 @@ public slots:
     /** @brief Stop automatic updates once hidden */
     void hideEvent(QHideEvent* event);
     void setActive(bool active);
-    /** @brief Select one MAV for curve display */
-    void selectActiveSystem(int mav);
+    void setActiveSystem(int systemid)
+    {
+        selectedMAV = systemid;
+    }
+
     /** @brief Set the number of values to average over */
     void setAverageWindow(int windowSize);
     /** @brief Start logging to file */
@@ -108,14 +117,6 @@ public slots:
     void readSettings();
     /** @brief Select all curves */
     void selectAllCurves(bool all);
-    /** @brief Sets the focus to the LineEdit for plot-filtering */
-    void setPlotFilterLineEditFocus();
-
-private slots:
-    /** Called when the user changes the time scale combobox. */
-    void timeScaleChanged(int index);
-    /** @brief Applies action on curve corresponding to key based on the bool match. I used to filter curves */
-    void filterCurve(const QString &key, bool match);
 
 protected:
     void addCurveToList(QString curve);
@@ -133,29 +134,32 @@ protected:
 
     int curveListIndex;
     int curveListCounter;                 ///< Counter of curves in curve list
+    QList<QString>* listedCurves;         ///< Curves listed
     QMap<QString, QLabel*>* curveLabels;  ///< References to the curve labels
     QMap<QString, QLabel*> curveNameLabels;  ///< References to the curve labels
     QMap<QString, QString> curveNames;    ///< Full curve names
     QMap<QString, QLabel*>* curveMeans;   ///< References to the curve means
     QMap<QString, QLabel*>* curveMedians; ///< References to the curve medians
-    QMap<QString, QWidget*> curveUnits;    ///< References to the curve units
     QMap<QString, QLabel*>* curveVariances; ///< References to the curve variances
     QMap<QString, int> intData;           ///< Current values for integer-valued curves
     QMap<QString, QWidget*> colorIcons;    ///< Reference to color icons
-    QMap<QString, QCheckBox*> checkBoxes;    ///< Reference to checkboxes
 
     QWidget* curvesWidget;                ///< The QWidget containing the curve selection button
     QGridLayout* curvesWidgetLayout;      ///< The layout for the curvesWidget QWidget
     QScrollBar* scrollbar;                ///< The plot window scroll bar
     QSpinBox* averageSpinBox;             ///< Spin box to setup average window filter size
 
+    QAction* setScalingLogarithmic;       ///< Set logarithmic scaling
+    QAction* setScalingLinear;            ///< Set linear scaling
     QAction* addNewCurve;                 ///< Add curve candidate to the active curves
 
     QMenu* curveMenu;
-    QComboBox *timeScaleCmb;
+    QGridLayout* mainLayout;
 
+    QToolButton* scalingLinearButton;
     QToolButton* scalingLogButton;
     QToolButton* logButton;
+    QPointer<QCheckBox> unitsCheckBox;
     QPointer<QCheckBox> timeButton;
 
     QFile* logFile;
@@ -166,9 +170,6 @@ protected:
     LogCompressor* compressor;
     QCheckBox* selectAllCheckBox;
     int selectedMAV; ///< The MAV for which plot items are accepted, -1 for all systems
-    quint64 lastTimestamp;
-    bool userGroundTimeSet;
-    bool autoGroundTimeSet;
     static const int updateInterval = 1000; ///< Time between number updates, in milliseconds
 
     static const int MAX_CURVE_MENUITEM_NUMBER = 8;

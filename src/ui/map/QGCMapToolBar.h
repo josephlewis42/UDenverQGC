@@ -28,7 +28,6 @@ public slots:
     void setUAVTrailTime();
     void setUAVTrailDistance();
     void setUpdateInterval();
-    void setMapType();
 
 private:
     Ui::QGCMapToolBar *ui;
@@ -38,11 +37,8 @@ protected:
     QMenu optionsMenu;
     QMenu trailPlotMenu;
     QMenu updateTimesMenu;
-    QMenu mapTypesMenu;
-
     QActionGroup* trailSettingsGroup;
     QActionGroup* updateTimesGroup;
-    QActionGroup* mapTypesGroup;
 };
 
 #endif // QGCMAPTOOLBAR_H

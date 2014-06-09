@@ -35,7 +35,7 @@ This file is part of the QGROUNDCONTROL project
 #include <QList>
 #include <QMutex>
 #include <UASInterface.h>
-#include "../../libs/eigen/Eigen/Eigen"
+#include "Eigen/Eigen"
 #include "QGCGeo.h"
 
 /**
@@ -58,12 +58,6 @@ public:
      * @return NULL pointer if no UAS exists, active UAS else
      **/
     UASInterface* getActiveUAS();
-    /**
-     * @brief getActiveUASWaypointManager
-     * @return uas->getUASWaypointManager(), or if not connected, a singleton instance of a UASWaypointManager.
-     */
-    UASWaypointManager *getActiveUASWaypointManager();
-
     UASInterface* silentGetActiveUAS();
     /**
      * @brief Get the UAS with this id
@@ -151,12 +145,12 @@ public slots:
      **/
     void addUAS(UASInterface* UAS);
 
-    /** @brief Remove a system from the list. If this is the active UAS, it switches to another one calling setActiveUAS. Also triggers the UAS to kill itself. */
-    void removeUAS(UASInterface* uas);
+    /** @brief Remove a system from the list */
+    void removeUAS(QObject* uas);
 
 
     /**
-      * @brief Set a UAS as currently selected. NULL is a valid value for when no other valid UAS's are available.
+      * @brief Set a UAS as currently selected
       *
       * @param UAS Unmanned Air System to set
       **/
@@ -231,11 +225,8 @@ public slots:
     /** @brief Shut down the onboard operating system down */
     bool shutdownActiveUAS();
 
-    /** @brief Set the current home position, but do not change it on the UAVs */
-    bool setHomePosition(double lat, double lon, double alt);
-
     /** @brief Set the current home position on all UAVs*/
-    bool setHomePositionAndNotify(double lat, double lon, double alt);
+    bool setHomePosition(double lat, double lon, double alt);
 
     /** @brief Set the safety limits in local position frame */
     void setLocalNEDSafetyBorders(double x1, double y1, double z1, double x2, double y2, double z2);
@@ -253,7 +244,6 @@ protected:
     UASManager();
     QList<UASInterface*> systems;
     UASInterface* activeUAS;
-    UASWaypointManager *offlineUASWaypointManager;
     QMutex activeUASMutex;
     double homeLat;
     double homeLon;
@@ -268,10 +258,7 @@ protected:
 
 signals:
 
-    /** A new system was created */
     void UASCreated(UASInterface* UAS);
-    /** A system was deleted */
-    void UASDeleted(UASInterface* UAS);
     /** @brief The UAS currently under main operator control changed */
     void activeUASSet(UASInterface* UAS);
     /** @brief The UAS currently under main operator control changed */

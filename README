@@ -1,0 +1,129 @@
+QGroundControl Open Source Micro Air Vehicle Ground Control Station
+
+Project:
+http://qgroundcontrol.org
+
+Files:
+http://github.com/mavlink/qgroundcontrol
+http://github.com/mavlink/mavlink
+
+Credits:
+http://qgroundcontrol.org/credits
+
+**********************************************************************************************
+* PLEASE NOTE: YOU NEED TO DOWNLOAD THE MAVLINK LIBRARY IN ORDER TO COMPILE THIS APPLICATION *
+**********************************************************************************************
+
+
+Mac OS X
+========
+
+To build on Mac OS X (10.5 or later):
+
+Install SDL
+-----------
+1) Download SDL from:  <http://www.libsdl.org/release/SDL-1.2.14.dmg>
+
+2) From the SDL disk image, copy the `sdl.framework` bundle to `/Library/Frameworks` directory (if you are not an admin copy to `~/Library/Framewroks`)
+
+Install QT with Cocoa
+----------------------
+1) Download Qt 4.6.2 with Cocoa from `http://get.qt.nokia.com/qt/source/qt-mac-cocoa-opensource-4.6.2.dmg` 
+
+2) Double click the package installer
+
+Get the MAVLINK Library
+-----------------------
+1) Clone the MAVLINK repository : `git clone git@github.com:pixhawk/mavlink.git`. **NOTE:** Make sure that the mavlink directory is in the same directory as groundcontrol. QGround control will look for mavlink library in ../mavlink
+
+Build QGroundControl
+--------------------
+1) From the terminal go to the `groundcontrol` directory
+
+2) Run `qmake`
+
+3) Run `xcodebuild -configuration Release` or open `qgroundcontrol.xcodeproj` in Xcode and build.
+
+
+Linux 
+=====
+
+
+To build on Linux:
+
+sudo apt-get install phonon libqt4-dev \
+ libphonon-dev libphonon4 phonon-backend-gstreamer \
+qtcreator libsdl1.2-dev libflite1 flite1-dev build-essential
+
+cd directory
+
+git clone https://github.com/mavlink/mavlink.git
+git clone https://github.com/mavlink/qgroundcontrol.git
+
+go to thirdParty -> libxbee 
+
+Create Library -> Readme file in folder
+
+Ubuntu Application Menu -> Development -> Qt Creator
+
+QtCreator Menu File -> Open File or Project..
+
+Open directory/qgroundcontrol/qgroundcontrol.pro
+
+Hit the green play button to compile and launch it
+
+Done.
+
+
+Windows
+=======
+
+DETAILED STEPS BELOW THE VISUAL STUDIO 2010 NOTES.
+GNU GCC / MINGW IS UNTESTED, COULD WORK
+VISUAL STUDIO 2008 / 2010 EXPRESS EDITION IS FREE!
+
+-------------------------------------------------------------------------------------
+VISUAL STUDIO 2010 NOTES (VS 2008 runs out-of-the-box, just follow the steps below):
+
+For use of Qt 4x with Visual Studio 2010 Add-in.
+
+Visual studio adds automatically certain defines that are wrong and cause errors.
+To resolve this, execute these steps:
+
+In the projects properties -> C/C++ ->preprocessor change:
+
+in DEBUG:
+	delete QT_NO_DEBUG
+
+in both (DEBUG / RELEASE):
+	delete QT_NO_DYNAMIC_CAST
+-------------------------------------------------------------------------------------
+
+
+
+
+Steps for Visual Studio 2008 / 2010. (VS 2008 is easier, VS 2010 only recommended for
+expert developers)
+
+
+Windows XP/7:
+
+1) Download and install the Qt SDK for Windows from http://qt.nokia.com/downloads/ (Visual Studio 2008 version) OR download Qt source and compile with VS 2010
+
+2) Download and install Visual Studio 2008 Express Edition (free) OR VS 2010 Express Edition
+
+3) Go to the QGroundControl folder and then to thirdParty -> libxbee
+
+4) Build the library. See win32.README 
+
+5) Go to the source folder of QGroundControl with the Qt 4.7.x Command Prompt tool (from the applications menu)
+
+6) Create the Visual Studio project by typing:
+
+qmake -tp vc qgroundcontrol.pro
+
+7) Now start Visual Studio and load the qgroundcontrol.vcproj file
+
+8) Compile and edit in Visual Studio. If you need to add new files, add them to qgroundcontrol.pro and re-run "quake -tp vc qgroundcontrol.pro"
+
+

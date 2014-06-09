@@ -3,7 +3,6 @@
 #include <QDesktopServices>
 
 #include "MainWindow.h"
-#include "SerialLink.h"
 #include "QGCMAVLinkLogPlayer.h"
 #include "QGC.h"
 #include "ui_QGCMAVLinkLogPlayer.h"
@@ -23,11 +22,10 @@ QGCMAVLinkLogPlayer::QGCMAVLinkLogPlayer(MAVLinkProtocol* mavlink, QWidget *pare
     binaryBaudRate(57600),
     isPlaying(false),
     currPacketCount(0),
-    lastLogDirectory(QDesktopServices::storageLocation(QDesktopServices::DesktopLocation)),
     ui(new Ui::QGCMAVLinkLogPlayer)
 {
     ui->setupUi(this);
-    ui->horizontalLayout->setAlignment(Qt::AlignTop);
+    ui->gridLayout->setAlignment(Qt::AlignTop);
 
     // Connect protocol
     connect(this, SIGNAL(bytesReady(LinkInterface*,QByteArray)), mavlink, SLOT(receiveBytes(LinkInterface*,QByteArray)));
@@ -45,20 +43,10 @@ QGCMAVLinkLogPlayer::QGCMAVLinkLogPlayer(MAVLinkProtocol* mavlink, QWidget *pare
     setAccelerationFactorInt(49);
     ui->speedSlider->setValue(49);
     ui->positionSlider->setValue(ui->positionSlider->minimum());
-
-    ui->playButton->setEnabled(false);
-    ui->speedSlider->setEnabled(false);
-    ui->positionSlider->setEnabled(false);
-    ui->speedLabel->setEnabled(false);
-    ui->logFileNameLabel->setEnabled(false);
-    ui->logStatsLabel->setEnabled(false);
-
-    loadSettings();
 }
 
 QGCMAVLinkLogPlayer::~QGCMAVLinkLogPlayer()
 {
-    storeSettings();
     delete ui;
 }
 
@@ -116,7 +104,7 @@ void QGCMAVLinkLogPlayer::play()
         }
         isPlaying = true;
         ui->logStatsLabel->setText(tr("Started playing.."));
-        ui->playButton->setIcon(QIcon(":files/images/actions/media-playback-pause.svg"));
+        ui->playButton->setIcon(QIcon(":images/actions/media-playback-pause.svg"));
     }
     else
     {
@@ -135,7 +123,7 @@ void QGCMAVLinkLogPlayer::pause()
 {
     isPlaying = false;
     loopTimer.stop();
-    ui->playButton->setIcon(QIcon(":files/images/actions/media-playback-start.svg"));
+    ui->playButton->setIcon(QIcon(":images/actions/media-playback-start.svg"));
     ui->selectFileButton->setEnabled(true);
     if (logLink)
     {
@@ -165,7 +153,7 @@ bool QGCMAVLinkLogPlayer::reset(int packetIndex)
             result = false;
         }
 
-        ui->playButton->setIcon(QIcon(":files/images/actions/media-playback-start.svg"));
+        ui->playButton->setIcon(QIcon(":images/actions/media-playback-start.svg"));
         ui->positionSlider->blockSignals(true);
         int sliderVal = (packetIndex / (double)(logFile.size()/packetSize)) * (ui->positionSlider->maximum() - ui->positionSlider->minimum());
         ui->positionSlider->setValue(sliderVal);
@@ -179,41 +167,9 @@ bool QGCMAVLinkLogPlayer::reset(int packetIndex)
     }
 }
 
-void QGCMAVLinkLogPlayer::loadSettings()
-{
-    QSettings settings;
-    settings.beginGroup("QGC_MAVLINKLOGPLAYER");
-    lastLogDirectory = settings.value("LAST_LOG_DIRECTORY", lastLogDirectory).toString();
-    settings.endGroup();
-}
-
-void QGCMAVLinkLogPlayer::storeSettings()
-{
-    QSettings settings;
-    settings.beginGroup("QGC_MAVLINKLOGPLAYER");
-    settings.setValue("LAST_LOG_DIRECTORY", lastLogDirectory);
-    settings.endGroup();
-    settings.sync();
-}
-
-/**
- * @brief Select a log file
- * @param startDirectory Directory where the file dialog will be opened
- * @return filename of the logFile
- */
 bool QGCMAVLinkLogPlayer::selectLogFile()
 {
-    return selectLogFile(lastLogDirectory);
-}
-
-/**
- * @brief Select a log file
- * @param startDirectory Directory where the file dialog will be opened
- * @return filename of the logFile
- */
-bool QGCMAVLinkLogPlayer::selectLogFile(const QString startDirectory)
-{
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Specify MAVLink log file name to replay"), startDirectory, tr("MAVLink or Binary Logfile (*.mavlink *.bin *.log)"));
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Specify MAVLink log file name to replay"), QDesktopServices::storageLocation(QDesktopServices::DesktopLocation), tr("MAVLink or Binary Logfile (*.mavlink *.bin *.log)"));
 
     if (fileName == "")
     {
@@ -221,7 +177,6 @@ bool QGCMAVLinkLogPlayer::selectLogFile(const QString startDirectory)
     }
     else
     {
-        lastLogDirectory = fileName;
         return loadLogFile(fileName);
     }
 }
@@ -263,14 +218,6 @@ void QGCMAVLinkLogPlayer::setAccelerationFactorInt(int factor)
 
 bool QGCMAVLinkLogPlayer::loadLogFile(const QString& file)
 {
-    // Enable controls
-    ui->playButton->setEnabled(true);
-    ui->speedSlider->setEnabled(true);
-    ui->positionSlider->setEnabled(true);
-    ui->speedLabel->setEnabled(true);
-    ui->logFileNameLabel->setEnabled(true);
-    ui->logStatsLabel->setEnabled(true);
-
     // Check if logging is still enabled
     if (mavlink->loggingEnabled())
     {
@@ -362,22 +309,6 @@ bool QGCMAVLinkLogPlayer::loadLogFile(const QString& file)
         // Reset current state
         reset(0);
 
-        // Check if a serial link is connected
-
-        bool linkWarning = false;
-        foreach (LinkInterface* link, LinkManager::instance()->getLinks())
-        {
-            SerialLink* s = dynamic_cast<SerialLink*>(link);
-
-            if (s && s->isConnected())
-                linkWarning = true;
-        }
-
-        if (linkWarning)
-            MainWindow::instance()->showInfoMessage(tr("Active MAVLink links found"), tr("Currently other links are connected. It is recommended to disconnect any active link before replaying a log."));
-
-        play();
-
         return true;
     }
 }
@@ -439,7 +370,6 @@ void QGCMAVLinkLogPlayer::logLoop()
             //qDebug() << "START TIME: " << startTime;
 
             // Check if these bytes could be correctly decoded
-            // TODO
             if (!ok)
             {
                 ui->logStatsLabel->setText(tr("Error decoding first timestamp, aborting."));
@@ -451,15 +381,14 @@ void QGCMAVLinkLogPlayer::logLoop()
 
 
         // Initialization seems fine, load next chunk
-        //this is ok because before we already read the timestamp of this paket before
         QByteArray chunk = logFile.read(timeLen+packetLen);
-        QByteArray packet = chunk.left(packetLen);
+        QByteArray packet = chunk.mid(0, packetLen);
 
         // Emit this packet
         emit bytesReady(logLink, packet);
 
         // Check if reached end of file before reading next timestamp
-        if (chunk.length() < (timeLen + packetLen) || logFile.atEnd())
+        if (chunk.length() < timeLen+packetLen || logFile.atEnd())
         {
             // Reached end of file
             reset();
@@ -471,7 +400,6 @@ void QGCMAVLinkLogPlayer::logLoop()
         }
 
         // End of file not reached, read next timestamp
-        // which is located after current packet
         QByteArray rawTime = chunk.mid(packetLen);
 
         // This is the timestamp of the next packet
@@ -560,15 +488,4 @@ void QGCMAVLinkLogPlayer::changeEvent(QEvent *e)
     default:
         break;
     }
-}
-
-/**
- * Implement paintEvent() so that stylesheets work for our custom widget.
- */
-void QGCMAVLinkLogPlayer::paintEvent(QPaintEvent *)
-{
-    QStyleOption opt;
-    opt.init(this);
-    QPainter p(this);
-    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }

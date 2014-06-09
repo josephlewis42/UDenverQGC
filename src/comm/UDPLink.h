@@ -49,9 +49,7 @@ public:
     //UDPLink(QHostAddress host = "239.255.76.67", quint16 port = 7667);
     ~UDPLink();
 
-    void requestReset() { }
-
-    bool isConnected() const;
+    bool isConnected();
     qint64 bytesAvailable();
     int getPort() const {
         return port;
@@ -60,33 +58,33 @@ public:
     /**
      * @brief The human readable port name
      */
-    QString getName() const;
-    int getBaudRate() const;
-    int getBaudRateType() const;
-    int getFlowType() const;
-    int getParityType() const;
-    int getDataBitsType() const;
-    int getStopBitsType() const;
-    QList<QHostAddress> getHosts() const {
+    QString getName();
+    int getBaudRate();
+    int getBaudRateType();
+    int getFlowType();
+    int getParityType();
+    int getDataBitsType();
+    int getStopBitsType();
+    QList<QHostAddress> getHosts() {
         return hosts;
     }
 
     /* Extensive statistics for scientific purposes */
-    qint64 getNominalDataRate() const;
+    qint64 getNominalDataRate();
     qint64 getTotalUpstream();
     qint64 getCurrentUpstream();
     qint64 getMaxUpstream();
     qint64 getTotalDownstream();
     qint64 getCurrentDownstream();
     qint64 getMaxDownstream();
-    qint64 getBitsSent() const;
-    qint64 getBitsReceived() const;
+    qint64 getBitsSent();
+    qint64 getBitsReceived();
 
     void run();
 
-    int getLinkQuality() const;
-    bool isFullDuplex() const;
-    int getId() const;
+    int getLinkQuality();
+    bool isFullDuplex();
+    int getId();
 
 public slots:
     void setAddress(QHostAddress host);

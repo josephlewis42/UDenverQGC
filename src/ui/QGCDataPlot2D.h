@@ -22,7 +22,7 @@ public:
     bool calculateRegression(QString xName, QString yName, QString method="linear");
 
     /** @brief Linear regression over data points */
-    bool linearRegression(double *x, double *y, int n, double *a, double *b, double *r);
+    int linearRegression(double* x,double* y,int n,double* a,double* b,double* r);
 
 public slots:
     /** @brief Load previously selected file */

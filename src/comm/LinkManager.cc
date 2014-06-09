@@ -63,18 +63,13 @@ LinkManager::LinkManager()
 LinkManager::~LinkManager()
 {
     disconnectAll();
-    foreach (LinkInterface* link, links)
-    {
-        if(link) link->deleteLater();
-    }
 }
 
 void LinkManager::add(LinkInterface* link)
 {
-    if (!links.contains(link))
-    {
+    if (!links.contains(link)) {
         if(!link) return;
-        connect(link, SIGNAL(destroyed(QObject*)), this, SLOT(removeObj(QObject*)));
+        connect(link, SIGNAL(destroyed(QObject*)), this, SLOT(removeLink(QObject*)));
         links.append(link);
         emit newLink(link);
     }
@@ -84,22 +79,17 @@ void LinkManager::addProtocol(LinkInterface* link, ProtocolInterface* protocol)
 {
     // Connect link to protocol
     // the protocol will receive new bytes from the link
-    if (!link || !protocol) return;
+    if(!link || !protocol) return;
 
     QList<LinkInterface*> linkList = protocolLinks.values(protocol);
 
     // If protocol has not been added before (list length == 0)
     // OR if link has not been added to protocol, add
-    if (!linkList.contains(link))
-    {
+    if ((linkList.length() > 0 && !linkList.contains(link)) || linkList.length() == 0) {
         // Protocol is new, add
         connect(link, SIGNAL(bytesReceived(LinkInterface*, QByteArray)), protocol, SLOT(receiveBytes(LinkInterface*, QByteArray)));
-        // Add status
-        connect(link, SIGNAL(connected(bool)), protocol, SLOT(linkStatusChanged(bool)));
         // Store the connection information in the protocol links map
         protocolLinks.insertMulti(protocol, link);
-        // Make sure the protocol clears its metadata for this link.
-        protocol->resetMetadataForLink(link);
     }
     //qDebug() << __FILE__ << __LINE__ << "ADDED LINK TO PROTOCOL" << link->getName() << protocol->getName() << "NEW SIZE OF LINK LIST:" << protocolLinks.size();
 }
@@ -109,17 +99,12 @@ QList<LinkInterface*> LinkManager::getLinksForProtocol(ProtocolInterface* protoc
     return protocolLinks.values(protocol);
 }
 
-ProtocolInterface* LinkManager::getProtocolForLink(LinkInterface* link)
-{
-    return protocolLinks.key(link);
-}
 
 bool LinkManager::connectAll()
 {
     bool allConnected = true;
 
-    foreach (LinkInterface* link, links)
-    {
+    foreach (LinkInterface* link, links) {
         if(!link) {}
         else if(!link->connect()) allConnected = false;
     }
@@ -131,8 +116,7 @@ bool LinkManager::disconnectAll()
 {
     bool allDisconnected = true;
 
-    foreach (LinkInterface* link, links)
-    {
+    foreach (LinkInterface* link, links) {
         //static int i=0;
         if(!link) {}
         else if(!link->disconnect()) allDisconnected = false;
@@ -153,36 +137,27 @@ bool LinkManager::disconnectLink(LinkInterface* link)
     return link->disconnect();
 }
 
-void LinkManager::removeObj(QObject* link)
+void LinkManager::removeLink(QObject* link)
 {
     LinkInterface* linkInterface = dynamic_cast<LinkInterface*>(link);
-    if (linkInterface)
-    {
+    if (linkInterface) {
         removeLink(linkInterface);
     }
 }
 
 bool LinkManager::removeLink(LinkInterface* link)
 {
-    if(link)
-    {
-        for (int i=0; i < QList<LinkInterface*>(links).size(); i++)
-        {
-            if(link==links.at(i))
-            {
+    if(link) {
+        for (int i=0; i < QList<LinkInterface*>(links).size(); i++) {
+            if(link==links.at(i)) {
                 links.removeAt(i); //remove from link list
             }
         }
         // Remove link from protocol map
         QList<ProtocolInterface* > protocols = protocolLinks.keys(link);
-        foreach (ProtocolInterface* proto, protocols)
-        {
+        foreach (ProtocolInterface* proto, protocols) {
             protocolLinks.remove(proto, link);
         }
-
-        // Emit removal of link
-        emit linkRemoved(link);
-
         return true;
     }
     return false;
@@ -196,8 +171,7 @@ bool LinkManager::removeLink(LinkInterface* link)
  */
 LinkInterface* LinkManager::getLinkForId(int id)
 {
-    foreach (LinkInterface* link, links)
-    {
+    foreach (LinkInterface* link, links) {
         if (link->getId() == id) return link;
     }
     return NULL;
@@ -209,19 +183,4 @@ LinkInterface* LinkManager::getLinkForId(int id)
 const QList<LinkInterface*> LinkManager::getLinks()
 {
     return QList<LinkInterface*>(links);
-}
-
-const QList<SerialLink*> LinkManager::getSerialLinks()
-{
-    QList<SerialLink*> s;
-
-    foreach (LinkInterface* i, links)
-    {
-        SerialLink* link = qobject_cast<SerialLink*>(i);
-
-        if (link)
-            s.append(link);
-    }
-
-    return s;
 }

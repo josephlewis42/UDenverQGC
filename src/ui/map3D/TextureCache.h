@@ -25,7 +25,7 @@ This file is part of the QGROUNDCONTROL project
  * @file
  *   @brief Definition of the class TextureCache.
  *
- *   @author Lionel Heng <hengli@inf.ethz.ch>
+ *   @author Lionel Heng <hengli@student.ethz.ch>
  *
  */
 
@@ -40,7 +40,7 @@ This file is part of the QGROUNDCONTROL project
 class TextureCache
 {
 public:
-    explicit TextureCache(int cacheSize);
+    explicit TextureCache(uint32_t cacheSize);
 
     TexturePtr get(const QString& tileURL);
 
@@ -51,10 +51,10 @@ private:
 
     bool requireSync(void) const;
 
-    int mCacheSize;
-    QVector<TexturePtr> mTextures;
+    uint32_t cacheSize;
+    QVector<TexturePtr> textures;
 
-    QScopedPointer<WebImageCache> mImageCache;
+    QScopedPointer<WebImageCache> imageCache;
 };
 
 #endif // TEXTURECACHE_H

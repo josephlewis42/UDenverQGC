@@ -52,67 +52,46 @@ SerialConfigurationWindow::SerialConfigurationWindow(LinkInterface* link, QWidge
         // Create action to open this menu
         // Create configuration action for this link
         // Connect the current UAS
-        action = new QAction(QIcon(":/files/images/devices/network-wireless.svg"), "", link);
+        action = new QAction(QIcon(":/images/devices/network-wireless.svg"), "", link);
         setLinkName(link->getName());
 
         setupPortList();
 
         // Set up baud rates
         ui.baudRate->clear();
-		
-		// Keep track of all desired baud rates by OS. These are iterated through
-		// later and added to ui.baudRate.
-		QList<int> supportedBaudRates;
-
-		// Baud rates supported only by POSIX systems
-#if defined(Q_OS_UNIX) || defined(Q_OS_LINUX) || defined(Q_OS_DARWIN)
-		supportedBaudRates << 50;
-		supportedBaudRates << 75;
-		supportedBaudRates << 134;
-		supportedBaudRates << 150;
-		supportedBaudRates << 200;
-		supportedBaudRates << 1800;
+        ui.baudRate->addItem("50", 50);
+        ui.baudRate->addItem("70", 70);
+        ui.baudRate->addItem("110", 110);
+        ui.baudRate->addItem("134", 134);
+        ui.baudRate->addItem("150", 150);
+        ui.baudRate->addItem("200", 200);
+        ui.baudRate->addItem("300", 300);
+        ui.baudRate->addItem("600", 600);
+        ui.baudRate->addItem("1200", 1200);
+        ui.baudRate->addItem("1800", 1800);
+        ui.baudRate->addItem("2400", 2400);
+        ui.baudRate->addItem("4800", 4800);
+        ui.baudRate->addItem("9600", 9600);
+#ifdef Q_OS_WIN
+        ui.baudRate->addItem("14400", 14400);
 #endif
-
-		// Baud rates supported only by Windows
-#if defined(Q_OS_WIN)
-		supportedBaudRates << 14400;
-		supportedBaudRates << 56000;
-		supportedBaudRates << 128000;
-		supportedBaudRates << 256000;
+        ui.baudRate->addItem("19200", 19200);
+        ui.baudRate->addItem("38400", 38400);
+#ifdef Q_OS_WIN
+        ui.baudRate->addItem("56000", 56000);
 #endif
-
-		// Baud rates supported by everyone
-		supportedBaudRates << 110;
-		supportedBaudRates << 300;
-		supportedBaudRates << 600;
-		supportedBaudRates << 1200;
-		supportedBaudRates << 2400;
-		supportedBaudRates << 4800;
-		supportedBaudRates << 9600;
-		supportedBaudRates << 19200;
-		supportedBaudRates << 38400;
-		supportedBaudRates << 57600;
-		supportedBaudRates << 115200;
-        supportedBaudRates << 230400;
-        supportedBaudRates << 460800;
-
-#if defined(Q_OS_LINUX)
-        // Baud rates supported only by Linux
-        supportedBaudRates << 500000;
-        supportedBaudRates << 576000;
+        ui.baudRate->addItem("57600", 57600);
+#ifdef Q_OS_WIN
+        ui.baudRate->addItem("76800", 76800);
 #endif
-
-        supportedBaudRates << 921600;
-		
-		// Now actually add all of our supported baud rates to the UI.
-		qSort(supportedBaudRates.begin(), supportedBaudRates.end());
-		for (int i = 0; i < supportedBaudRates.size(); ++i) {
-			ui.baudRate->addItem(QString::number(supportedBaudRates.at(i)), supportedBaudRates.at(i));
-		}
-
-        // Load current link config
-        ui.portName->setCurrentIndex(ui.baudRate->findText(QString("%1").arg(this->link->getPortName())));
+        ui.baudRate->addItem("115200", 115200);
+#ifdef Q_OS_WIN
+        ui.baudRate->addItem("128000", 128000);
+        ui.baudRate->addItem("230400", 230400);
+        ui.baudRate->addItem("256000", 256000);
+        ui.baudRate->addItem("460800", 460800);
+#endif
+        ui.baudRate->addItem("921600", 921600);
 
         connect(action, SIGNAL(triggered()), this, SLOT(configureCommunication()));
 
@@ -129,13 +108,10 @@ SerialConfigurationWindow::SerialConfigurationWindow(LinkInterface* link, QWidge
         connect(ui.parEven, SIGNAL(toggled(bool)), this, SLOT(setParityEven(bool)));
         connect(ui.dataBitsSpinBox, SIGNAL(valueChanged(int)), this->link, SLOT(setDataBits(int)));
         connect(ui.stopBitsSpinBox, SIGNAL(valueChanged(int)), this->link, SLOT(setStopBits(int)));
-        connect(ui.advCheckBox,SIGNAL(clicked(bool)),ui.advGroupBox,SLOT(setShown(bool)));
-        ui.advCheckBox->setChecked(false);
-        ui.advGroupBox->setVisible(false);
 
         //connect(this->link, SIGNAL(connected(bool)), this, SLOT());
-        //ui.portName->setSizeAdjustPolicy(QComboBox::AdjustToContentsOnFirstShow);
-        //ui.baudRate->setSizeAdjustPolicy(QComboBox::AdjustToContentsOnFirstShow);
+        ui.portName->setSizeAdjustPolicy(QComboBox::AdjustToContentsOnFirstShow);
+        ui.baudRate->setSizeAdjustPolicy(QComboBox::AdjustToContentsOnFirstShow);
 
         switch(this->link->getParityType()) {
         case 0:
@@ -218,29 +194,27 @@ void SerialConfigurationWindow::setupPortList()
 {
     if (!link) return;
 
+    if (!userConfigured)
+    {
+        ui.portName->clear();
+        ui.portName->clearEditText();
+    }
     // Get the ports available on this system
-    QList<QString> ports = link->getCurrentPorts();
-
-    QString storedName = this->link->getPortName();
-    bool storedFound = false;
+    QVector<QString>* ports = link->getCurrentPorts();
 
     // Add the ports in reverse order, because we prepend them to the list
-    for (int i = ports.count() - 1; i >= 0; --i)
+    for (int i = ports->size() - 1; i >= 0; --i)
     {
         // Prepend newly found port to the list
-        if (ui.portName->findText(ports[i]) == -1)
+        if (ui.portName->findText(ports->at(i)) == -1)
         {
-            ui.portName->insertItem(0, ports[i]);
-            if (!userConfigured) ui.portName->setEditText(ports[i]);
+            ui.portName->insertItem(0, ports->at(i));
+            if (!userConfigured) ui.portName->setEditText(ports->at(i));
         }
-
-        // Check if the stored link name is still present
-        if (ports[i].contains(storedName) || storedName.contains(ports[i]))
-            storedFound = true;
     }
 
-    if (storedFound)
-        ui.portName->setEditText(storedName);
+
+    ui.portName->setEditText(this->link->getPortName());
 }
 
 void SerialConfigurationWindow::enableFlowControl(bool flow)
@@ -262,7 +236,7 @@ void SerialConfigurationWindow::setParityNone(bool accept)
 
 void SerialConfigurationWindow::setParityOdd(bool accept)
 {
-    if (accept) link->setParityType(1); // [TODO] This needs to be Fixed [BB]
+    if (accept) link->setParityType(1);
 }
 
 void SerialConfigurationWindow::setParityEven(bool accept)

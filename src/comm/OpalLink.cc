@@ -267,7 +267,6 @@ void OpalLink::readBytes()
 
 void OpalLink::receiveMessage(mavlink_message_t message)
 {
-
     // Create buffer
     char buffer[MAVLINK_MAX_PACKET_LEN];
     // Write message into buffer, prepending start sign
@@ -411,12 +410,12 @@ void OpalLink::run()
 //    qDebug() << "OpalLink::run():: Starting the thread";
 }
 
-int OpalLink::getId() const
+int OpalLink::getId()
 {
     return id;
 }
 
-QString OpalLink::getName() const
+QString OpalLink::getName()
 {
     return name;
 }
@@ -427,7 +426,7 @@ void OpalLink::setName(QString name)
     emit nameChanged(this->name);
 }
 
-bool OpalLink::isConnected() const
+bool OpalLink::isConnected()
 {
     return connectState;
 }
@@ -505,12 +504,12 @@ bool OpalLink::disconnect()
  *
  */
 
-qint64 OpalLink::getNominalDataRate() const
+qint64 OpalLink::getNominalDataRate()
 {
     return 0; //unknown
 }
 
-int OpalLink::getLinkQuality() const
+int OpalLink::getLinkQuality()
 {
     return -1; //not supported
 }
@@ -541,18 +540,18 @@ qint64 OpalLink::getMaxUpstream()
     return 0; //unknown
 }
 
-qint64 OpalLink::getBitsSent() const
+qint64 OpalLink::getBitsSent()
 {
     return bitsSentTotal;
 }
 
-qint64 OpalLink::getBitsReceived() const
+qint64 OpalLink::getBitsReceived()
 {
     return bitsReceivedTotal;
 }
 
 
-bool OpalLink::isFullDuplex() const
+bool OpalLink::isFullDuplex()
 {
     return false;
 }

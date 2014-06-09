@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1183</width>
+    <width>882</width>
     <height>430</height>
    </rect>
   </property>
@@ -27,11 +27,7 @@
     <number>3</number>
    </property>
    <item row="7" column="0" colspan="3">
-    <widget class="QComboBox" name="editCommandComboBox">
-     <property name="editable">
-      <bool>true</bool>
-     </property>
-    </widget>
+    <widget class="QComboBox" name="editCommandComboBox"/>
    </item>
    <item row="7" column="3">
     <widget class="QPushButton" name="editFinishButton">
@@ -49,8 +45,8 @@
    </item>
    <item row="2" column="0" colspan="3">
     <widget class="QLineEdit" name="editNameLabel">
-     <property name="placeholderText">
-      <string>Button Description</string>
+     <property name="text">
+      <string>&lt;Button Description Label (in front of button)&gt;</string>
      </property>
     </widget>
    </item>

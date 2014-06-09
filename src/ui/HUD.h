@@ -33,14 +33,11 @@ This file is part of the QGROUNDCONTROL project
 #define HUD_H
 
 #include <QImage>
-#include <QWidget>
-#include <QLabel>
+#include <QGLWidget>
 #include <QPainter>
 #include <QFontDatabase>
 #include <QTimer>
-#include <QVector3D>
 #include "UASInterface.h"
-#include "MainWindow.h"
 
 /**
  * @brief Displays a Head Up Display (HUD)
@@ -49,7 +46,7 @@ This file is part of the QGROUNDCONTROL project
  * It can superimpose the HUD over the current live image stream (any arriving image stream will be auto-
  * matically used as background), or it draws the classic blue-brown background known from instruments.
  */
-class HUD : public QLabel
+class HUD : public QGLWidget
 {
     Q_OBJECT
 public:
@@ -57,20 +54,18 @@ public:
     ~HUD();
 
     void setImageSize(int width, int height, int depth, int channels);
-    void resize(int w, int h);
+    void resizeGL(int w, int h);
 
 public slots:
-    void styleChanged(MainWindow::QGC_MAINWINDOW_STYLE newTheme);
+    void initializeGL();
+    //void paintGL();
 
     /** @brief Set the currently monitored UAS */
-    virtual void setActiveUAS(UASInterface* uas);
+    void setActiveUAS(UASInterface* uas);
 
-    /** @brief Attitude from main autopilot / system state */
     void updateAttitude(UASInterface* uas, double roll, double pitch, double yaw, quint64 timestamp);
-    /** @brief Attitude from one specific component / redundant autopilot */
-    void updateAttitude(UASInterface* uas, int component, double roll, double pitch, double yaw, quint64 timestamp);
 //    void updateAttitudeThrustSetPoint(UASInterface*, double rollDesired, double pitchDesired, double yawDesired, double thrustDesired, quint64 usec);
-    void updateBattery(UASInterface*, double, double, double, int);
+    void updateBattery(UASInterface*, double, double, int);
     void receiveHeartbeat(UASInterface*);
     void updateThrust(UASInterface*, double);
     void updateLocalPosition(UASInterface*,double,double,double,quint64);
@@ -87,7 +82,6 @@ public slots:
     void finishImage();
     void saveImage();
     void saveImage(QString fileName);
-    void saveImages(bool save);
     /** @brief Select directory where to load the offline files from */
     void selectOfflineDirectory();
     /** @brief Enable the HUD instruments */
@@ -99,6 +93,7 @@ public slots:
 
 
 protected slots:
+    void paintCenterBackground(float roll, float pitch, float yaw);
     void paintRollPitchStrips();
     void paintPitchLines(float pitch, QPainter* painter);
     /** @brief Paint text on top of the image and OpenGL drawings */
@@ -113,7 +108,7 @@ protected slots:
     void drawEllipse(float refX, float refY, float radiusX, float radiusY, float startDeg, float endDeg, float lineWidth, const QColor& color, QPainter* painter);
     void drawCircle(float refX, float refY, float radius, float startDeg, float endDeg, float lineWidth, const QColor& color, QPainter* painter);
 
-    void drawChangeRateStrip(float xRef, float yRef, float height, float minRate, float maxRate, float value, QPainter* painter,bool reverse = false);
+    void drawChangeRateStrip(float xRef, float yRef, float height, float minRate, float maxRate, float value, QPainter* painter);
     void drawChangeIndicatorGauge(float xRef, float yRef, float radius, float expectedMaxChange, float value, const QColor& color, QPainter* painter, bool solid=true);
 
     void drawPolygon(QPolygonF refPolygon, QPainter* painter);
@@ -140,7 +135,7 @@ protected:
     void contextMenuEvent (QContextMenuEvent* event);
     void createActions();
 
-    static const int updateInterval = 100;
+    static const int updateInterval = 40;
 
     QImage* image; ///< Double buffer image
     QImage glImage; ///< The background / camera image
@@ -184,7 +179,7 @@ protected:
     int warningBlinkRate;      ///< Blink rate of warning messages, will be rounded to the refresh rate
 
     QTimer* refreshTimer;      ///< The main timer, controls the update rate
-    QPainter* HUDPainter;
+    QPainter* hudPainter;
     QFont font;                ///< The HUD font, per default the free Bitstream Vera SANS, which is very close to actual HUD fonts
     QFontDatabase fontDatabase;///< Font database, only used to load the TrueType font file (the HUD font is directly loaded from file rather than from the system)
     bool noCamera;             ///< No camera images available, draw the ground/sky box to indicate the horizon
@@ -198,7 +193,6 @@ protected:
     float roll;
     float pitch;
     float yaw;
-    QMap<uint8_t, QVector3D> attitudes;
     float rollLP;
     float pitchLP;
     float yawLP;
@@ -218,21 +212,18 @@ protected:
     float load;
     QString offlineDirectory;
     QString nextOfflineImage;
-    bool HUDInstrumentsEnabled;
+    bool hudInstrumentsEnabled;
     bool videoEnabled;
     bool dataStreamEnabled;
-    bool imageLoggingEnabled;
     float xImageFactor;
     float yImageFactor;
     QAction* enableHUDAction;
     QAction* enableVideoAction;
     QAction* selectOfflineDirectoryAction;
     QAction* selectVideoChannelAction;
-    QAction* selectSaveDirectoryAction;
     void paintEvent(QPaintEvent *event);
     bool imageRequested;
-    QString imageLogDirectory;
-    unsigned int imageLogCounter;
+
 };
 
 #endif // HUD_H

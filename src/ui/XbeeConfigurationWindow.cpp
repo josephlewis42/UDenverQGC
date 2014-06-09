@@ -8,8 +8,7 @@
 #include <qdatastream.h>
 
 #ifdef _WIN32
-//#include <QextSerialEnumerator.h>
-#include <qserialportinfo.h>
+#include <QextSerialEnumerator.h>
 #endif
 
 #if defined (__APPLE__) && defined (__MACH__)
@@ -204,7 +203,7 @@ XbeeConfigurationWindow::XbeeConfigurationWindow(LinkInterface* link, QWidget *p
 	{
 		this->link = xbeeLink;
 
-		action = new QAction(QIcon(":/files/images/devices/network-wireless.svg"), "", link);
+		action = new QAction(QIcon(":/images/devices/network-wireless.svg"), "", link);
 
 		baudLabel = new QLabel;
 		baudLabel->setText(tr("Baut Rate"));
@@ -369,12 +368,11 @@ void XbeeConfigurationWindow::setupPortList()
 
 #ifdef _WIN32
     // Get the ports available on this system
-    QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
-    //QList<QextPortInfo> ports = QextSerialEnumerator::getPorts();
+    QList<QextPortInfo> ports = QextSerialEnumerator::getPorts();
 
     // Add the ports in reverse order, because we prepend them to the list
     for (int i = ports.size() - 1; i >= 0; i--) {
-        QString portString = QString(ports.at(i).portName().toLocal8Bit().constData());
+        QString portString = QString(ports.at(i).portName.toLocal8Bit().constData()) + " - " + QString(ports.at(i).friendName.toLocal8Bit().constData()).split("(").first();
         // Prepend newly found port to the list
         if (portBox->findText(portString) == -1) {
             portBox->insertItem(0, portString);

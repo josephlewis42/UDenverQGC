@@ -57,7 +57,6 @@ public slots:
     void updateSatellite(int uasid, int satid, float azimuth, float direction, float snr, bool used);
     void updateAttitudeSetpoints(UASInterface*, double rollDesired, double pitchDesired, double yawDesired, double thrustDesired, quint64 usec);
     void updateAttitude(UASInterface* uas, double roll, double pitch, double yaw, quint64 time);
-    void updateUserPositionSetpoints(int uasid, float xDesired, float yDesired, float zDesired, float yawDesired);
     void updatePositionSetpoints(int uasid, float xDesired, float yDesired, float zDesired, float yawDesired, quint64 usec);
     void updateLocalPosition(UASInterface*, double x, double y, double z, quint64 usec);
     void updateGlobalPosition(UASInterface*, double lat, double lon, double alt, quint64 usec);
@@ -66,83 +65,6 @@ public slots:
     void updateAttitudeControllerEnabled(bool enabled);
     void updatePositionXYControllerEnabled(bool enabled);
     void updatePositionZControllerEnabled(bool enabled);
-
-    /** @brief Optical flow status changed */
-    void updateOpticalFlowStatus(bool supported, bool enabled, bool ok) {
-        if (supported && enabled && ok) {
-            visionFix = true;
-        } else {
-            visionFix = false;
-        }
-    }
-
-    /** @brief Vision based localization status changed */
-    void updateVisionLocalizationStatus(bool supported, bool enabled, bool ok) {
-        if (enabled && ok) {
-            visionFix = true;
-        } else {
-            visionFix = false;
-        }
-        visionFixKnown = supported;
-    }
-    /** @brief Infrared / Ultrasound status changed */
-    void updateDistanceSensorStatus(bool supported, bool enabled, bool ok) {
-        if (enabled && ok) {
-            iruFix = true;
-        } else {
-            iruFix = false;
-        }
-        iruFixKnown = supported;
-    }
-    /** @brief Gyroscope status changed */
-    void updateGyroStatus(bool supported, bool enabled, bool ok) {
-        gyroKnown = supported;
-        gyroON = enabled;
-        gyroOK = ok;
-    }
-    /** @brief Accelerometer status changed */
-    void updateAccelStatus(bool supported, bool enabled, bool ok) {
-        accelKnown = supported;
-        accelON = enabled;
-        accelOK = ok;
-    }
-    /** @brief Magnetometer status changed */
-    void updateMagSensorStatus(bool supported, bool enabled, bool ok) {
-        magKnown = supported;
-        magON = enabled;
-        magOK = ok;
-    }
-    /** @brief Barometer status changed */
-    void updateBaroStatus(bool supported, bool enabled, bool ok) {
-        pressureKnown = supported;
-        pressureON = enabled;
-        pressureOK = ok;
-    }
-    /** @brief Differential pressure / airspeed status changed */
-    void updateAirspeedStatus(bool supported, bool enabled, bool ok) {
-        diffPressureKnown = supported;
-        diffPressureON = enabled;
-        diffPressureOK = ok;
-    }
-    /** @brief Actuator status changed */
-    void updateActuatorStatus(bool supported, bool enabled, bool ok) {
-        actuatorsKnown = supported;
-        actuatorsON = enabled;
-        actuatorsOK = ok;
-    }
-    /** @brief Laser scanner status changed */
-    void updateLaserStatus(bool supported, bool enabled, bool ok) {
-        laserKnown = supported;
-        laserON = enabled;
-        laserOK = ok;
-    }
-    /** @brief Vicon / Leica Geotracker status changed */
-    void updateGroundTruthSensorStatus(bool supported, bool enabled, bool ok) {
-        viconKnown = supported;
-        viconON = enabled;
-        viconOK = ok;
-    }
-
     void updateObjectPosition(unsigned int time, int id, int type, const QString& name, int quality, float bearing, float distance);
     /** @brief Heading control enabled/disabled */
     void updatePositionYawControllerEnabled(bool enabled);
@@ -186,7 +108,6 @@ protected slots:
     void drawAltitudeSetpoint(float xRef, float yRef, float radius, const QColor& color, QPainter* painter);
     /** @brief Draw a status flag indicator */
     void drawStatusFlag(float x, float y, QString label, bool status, bool known, QPainter& painter);
-    void drawStatusFlag(float x, float y, QString label, bool status, bool known, bool ok, QPainter& painter);
     /** @brief Draw a position lock indicator */
     void drawPositionLock(float x, float y, QString label, int status, bool known, QPainter& painter);
     void setBodySetpointCoordinateXY(double x, double y);
@@ -198,8 +119,6 @@ protected slots:
     void drawSetpointXYZYaw(float x, float y, float z, float yaw, const QColor &color, QPainter &painter);
     /** @brief Draw waypoints of this system */
     void drawWaypoints(QPainter& painter);
-    /** @brief Draw one waypoint */
-    void drawWaypoint(QPainter& painter, const QColor& color, float width, const Waypoint *w, const QPointF& p);
     /** @brief Draw the limiting safety area */
     void drawSafetyArea(const QPointF &topLeft, const QPointF &bottomRight,  const QColor &color, QPainter &painter);
     /** @brief Receive mouse clicks */
@@ -242,6 +161,19 @@ protected:
     double refToMetric(double ref);
     /** @brief Metric body coordinates to screen coordinates */
     QPointF metricBodyToScreen(QPointF metric);
+    QMap<int, QString> objectNames;
+    QMap<int, int> objectTypes;
+    QMap<int, float> objectQualities;
+    QMap<int, float> objectBearings;
+    QMap<int, float> objectDistances;
+    bool dragStarted;
+    bool leftDragStarted;
+    bool mouseHasMoved;
+    float startX;
+    float startY;
+    QTimer statusClearTimer;
+    QString statusMessage;
+    bool actionPending;
 
     /**
      * @brief Private data container class to be used within the HSI widget
@@ -277,21 +209,6 @@ protected:
 
         friend class HSIDisplay;
     };
-
-    QMap<int, QString> objectNames;
-    QMap<int, int> objectTypes;
-    QMap<int, float> objectQualities;
-    QMap<int, float> objectBearings;
-    QMap<int, float> objectDistances;
-    bool dragStarted;
-    bool leftDragStarted;
-    bool mouseHasMoved;
-    float startX;
-    float startY;
-    QTimer statusClearTimer;
-    QString statusMessage;
-    bool actionPending;
-    bool directSending;
 
     QMap<int, GPSSatellite*> gpsSatellites;
     unsigned int satellitesUsed;
@@ -346,7 +263,6 @@ protected:
     float yCenterPos;         ///< Y center of instrument in virtual coordinates
 
     bool positionLock;
-    bool rateControlEnabled;  ///< Rate control enabled
     bool attControlEnabled;   ///< Attitude control enabled
     bool xyControlEnabled;    ///< Horizontal control enabled
     bool zControlEnabled;     ///< Vertical control enabled
@@ -356,12 +272,10 @@ protected:
     int visionFix;            ///< Localizaiton dimensions based on computer vision
     int laserFix;             ///< Localization dimensions based on laser
     int iruFix;               ///< Localization dimensions based on ultrasound
-
     bool mavInitialized;      ///< The MAV is initialized once the setpoint has been received
-    float topMargin;          ///< Margin on top of the page, in virtual coordinates
     float bottomMargin;       ///< Margin on the bottom of the page, in virtual coordinates
+    float topMargin;          ///< Margin on top of the page, in virtual coordinates
 
-    bool rateControlKnown;     ///< Rate control status known flag
     bool attControlKnown;     ///< Attitude control status known flag
     bool xyControlKnown;      ///< XY control status known flag
     bool zControlKnown;       ///< Z control status known flag
@@ -373,50 +287,11 @@ protected:
     bool gpsFixKnown;         ///< GPS fix status known flag
     bool iruFixKnown;         ///< Infrared/Ultrasound fix status known flag
 
-    // System state indicators
-    bool gyroKnown;
-    bool gyroON;
-    bool gyroOK;
-
-    bool accelKnown;
-    bool accelON;
-    bool accelOK;
-
-    bool magKnown;
-    bool magON;
-    bool magOK;
-
-    bool pressureKnown;
-    bool pressureON;
-    bool pressureOK;
-
-    bool diffPressureKnown;
-    bool diffPressureON;
-    bool diffPressureOK;
-
-    bool flowKnown;
-    bool flowON;
-    bool flowOK;
-
-    bool laserKnown;
-    bool laserON;
-    bool laserOK;
-
-    bool viconKnown;
-    bool viconON;
-    bool viconOK;
-
-    bool actuatorsKnown;
-    bool actuatorsON;
-    bool actuatorsOK;
-
     // Data indicators
     bool setPointKnown;       ///< Controller setpoint known status flag
     bool positionSetPointKnown; ///< Position setpoint known status flag
     bool userSetPointSet;     ///< User set X, Y and Z
     bool userXYSetPointSet;   ///< User set the X/Y position already
-    bool userZSetPointSet;   ///< User set the Z position already
-    bool userYawSetPointSet;   ///< User set the YAW position already
 
 private:
 };

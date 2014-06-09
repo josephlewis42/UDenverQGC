@@ -112,8 +112,8 @@
         <string>Start</string>
        </property>
        <property name="icon">
-        <iconset resource="../../qgroundcontrol.qrc">
-         <normaloff>:/files/images/control/launch.svg</normaloff>:/files/images/control/launch.svg</iconset>
+        <iconset resource="../../mavground.qrc">
+         <normaloff>:/images/control/launch.svg</normaloff>:/images/control/launch.svg</iconset>
        </property>
       </widget>
      </item>
@@ -135,8 +135,8 @@
         <string>Land</string>
        </property>
        <property name="icon">
-        <iconset resource="../../qgroundcontrol.qrc">
-         <normaloff>:/files/images/control/land.svg</normaloff>:/files/images/control/land.svg</iconset>
+        <iconset resource="../../mavground.qrc">
+         <normaloff>:/images/control/land.svg</normaloff>:/images/control/land.svg</iconset>
        </property>
       </widget>
      </item>
@@ -158,8 +158,8 @@
         <string>Halt</string>
        </property>
        <property name="icon">
-        <iconset resource="../../qgroundcontrol.qrc">
-         <normaloff>:/files/images/actions/system-log-out.svg</normaloff>:/files/images/actions/system-log-out.svg</iconset>
+        <iconset resource="../../mavground.qrc">
+         <normaloff>:/images/actions/system-log-out.svg</normaloff>:/images/actions/system-log-out.svg</iconset>
        </property>
       </widget>
      </item>
@@ -199,8 +199,8 @@
       <string>Set</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qgroundcontrol.qrc">
-       <normaloff>:/files/images/devices/network-wireless.svg</normaloff>:/files/images/devices/network-wireless.svg</iconset>
+      <iconset resource="../../mavground.qrc">
+       <normaloff>:/images/devices/network-wireless.svg</normaloff>:/images/devices/network-wireless.svg</iconset>
      </property>
     </widget>
    </item>
@@ -274,7 +274,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../../qgroundcontrol.qrc"/>
+  <include location="../../mavground.qrc"/>
  </resources>
  <connections/>
 </ui>

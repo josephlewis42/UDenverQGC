@@ -49,8 +49,8 @@
       <string>Mute</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qgroundcontrol.qrc">
-       <normaloff>:/files/images/status/audio-volume-muted.svg</normaloff>:/files/images/status/audio-volume-muted.svg</iconset>
+      <iconset resource="../../mavground.qrc">
+       <normaloff>:/images/status/audio-volume-muted.svg</normaloff>:/images/status/audio-volume-muted.svg</iconset>
      </property>
      <property name="iconSize">
       <size>
@@ -63,7 +63,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../../qgroundcontrol.qrc"/>
+  <include location="../../mavground.qrc"/>
  </resources>
  <connections/>
 </ui>

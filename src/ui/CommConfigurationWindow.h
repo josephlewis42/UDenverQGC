@@ -33,7 +33,7 @@ This file is part of the QGROUNDCONTROL project
 #define _COMMCONFIGURATIONWINDOW_H_
 
 #include <QObject>
-#include <QDialog>
+#include <QWidget>
 #include <QAction>
 #include "LinkInterface.h"
 #include "ProtocolInterface.h"
@@ -47,13 +47,12 @@ enum qgc_link_t {
 #ifdef XBEELINK
 	QGC_LINK_XBEE,
 #endif
-#ifdef OPAL_RT
     QGC_LINK_OPAL
-#endif
 };
 
 enum qgc_protocol_t {
     QGC_PROTOCOL_MAVLINK,
+    QGC_PROTOCOL_NMEA
 };
 
 
@@ -64,21 +63,18 @@ enum qgc_protocol_t {
 /**
  * @brief Configuration window for communication links
  */
-class CommConfigurationWindow : public QDialog
+class CommConfigurationWindow : public QWidget
 {
     Q_OBJECT
 
 public:
-    CommConfigurationWindow(LinkInterface* link, ProtocolInterface* protocol, QWidget *parent = 0);
+    CommConfigurationWindow(LinkInterface* link, ProtocolInterface* protocol, QWidget *parent = 0, Qt::WindowFlags flags = Qt::Sheet);
     ~CommConfigurationWindow();
 
     QAction* getAction();
-    void setLinkType(qgc_link_t linktype);
-
-private slots:
-    void linkCurrentIndexChanged(int currentIndex);
 
 public slots:
+    void setLinkType(int linktype);
     /** @brief Set the protocol for this link */
     void setProtocol(int protocol);
     void setConnection();

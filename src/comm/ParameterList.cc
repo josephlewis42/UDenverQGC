@@ -39,7 +39,7 @@ ParameterList::ParameterList()
     QDir settingsDir = QDir(qApp->applicationDirPath());
     if (settingsDir.dirName() == "bin")
         settingsDir.cdUp();
-    settingsDir.cd("data");
+    settingsDir.cd("settings");
 
     // Enforce a list of parameters which are necessary for flight
     reqdServoParams->append("AIL_RIGHT_IN");

@@ -42,9 +42,7 @@ public:
     ObstacleGroupNode();
 
     void init(void);
-    void clear(void);
-    void update(double robotX, double robotY, double robotZ,
-                const px::ObstacleList& obstacleList);
+    void update(MAV_FRAME frame, UASInterface* uas);
 };
 
 #endif // OBSTACLEGROUPNODE_H

@@ -12,7 +12,12 @@ public:
 
 signals:
     void textMessageReceived(int uasid, int componentid, int severity, const QString& text);
-    void valueChanged(const int uasId, const QString& name, const QString& unit, const QVariant& value, const quint64 msec);
+    void valueChanged(const int uasId, const QString& name, const QString& unit, const double value, const quint64 msec);
+    void valueChanged(const int uasId, const QString& name, const QString& unit, const int value, const quint64 msec);
+    void valueChanged(const int uasId, const QString& name, const QString& unit, const unsigned int value, const quint64 msec);
+    void valueChanged(const int uasId, const QString& name, const QString& unit, const quint64 value, const quint64 msec);
+    void valueChanged(const int uasId, const QString& name, const QString& unit, const qint64 value, const quint64 msec);
+
 
 public slots:
     /** @brief Receive one message from the protocol and decode it */

@@ -289,16 +289,121 @@ void UAlbertaControlWidget::displaySatellites(int sats)
     ui.satellites_label->setText(QString("%1").arg(sats));
 }
 
-void UAlbertaControlWidget::displayPositionError(int type, int status, QVector<float> error)
+QString UAlbertaControlWidget::getStrVelocityPositionErr(int type)
 {
-    ui.pos_sol_type_label->setText(QString("%1").arg(type));
-    ui.pos_sol_status_label->setText(QString("%1").arg(status));
+    QString velocityErrorType;
+    switch(type)
+    {
+    case 0:
+        velocityErrorType = "No solution";
+        break;
+    case 1:
+        velocityErrorType = "Fixed Position";
+        break;
+    case 2:
+        velocityErrorType = "Fixed Height";
+        break;
+    case 8:
+        velocityErrorType = "Doppler Velocity";
+        break;
+    case 16:
+        velocityErrorType = "Single Point";
+        break;
+    case 17:
+        velocityErrorType = "Pseudorange Diff";
+        break;
+    case 18:
+        velocityErrorType = "WAAS";
+        break;
+    case 19:
+        velocityErrorType = "Propagated";
+        break;
+    case 20:
+        velocityErrorType = "OmniSTAR";
+        break;
+    case 32:
+        velocityErrorType = "L1 float";
+        break;
+    case 33:
+        velocityErrorType = "Ionosphere free float";
+        break;
+    case 34:
+        velocityErrorType = "Narrow float";
+        break;
+    case 48:
+        velocityErrorType = "L1 Integer";
+        break;
+    case 50:
+        velocityErrorType = "Narrow integer";
+        break;
+    case 64:
+        velocityErrorType = "OmniSTAR HP";
+        break;
+    case 65:
+        velocityErrorType = "OmniSTAR XP";
+        break;
+    default:
+        velocityErrorType = QString("%1").arg(type);
+    }
+
+    return velocityErrorType;
+}
+
+void UAlbertaControlWidget::displayPositionError(int type, int statusInt, QVector<float> error)
+{
+    ui.pos_sol_type_label->setText(getStrVelocityPositionErr(type));
+
+    QString status = QString("%1").arg(statusInt);
+
+    switch(statusInt)
+    {
+    case 0:
+        status = QString("Solution Computed");
+        break;
+    case 1:
+        status = QString("Insufficient Observations");
+        break;
+    case 2:
+        status = QString("No Convergence");
+        break;
+    case 3:
+        status = QString("Singularity");
+        break;
+    case 4:
+        status = QString("Covariance Trace");
+        break;
+    case 5:
+        status = QString("Cold Start");
+        break;
+    case 6:
+        status = QString("Height/Vel. Limit Exceeded");
+        break;
+    case 7:
+        status = QString("Variance");
+        break;
+    case 8:
+        status = QString("Integrity Warning");
+        break;
+    case 9:
+        status = QString("Pending");
+        break;
+    case 10:
+        status = QString("Invalid Fixed Positoin");
+        break;
+    case 11:
+        status = QString("Unauthorized");
+        break;
+    default:
+        status = QString("%1").arg(statusInt);
+    }
+
+    ui.pos_sol_status_label->setText(status);
     ui.pos_std_label->setText(QString("%1 %2 %3").arg(error[0],0,'g',3).arg(error[1],0,'g',3).arg(error[2],0,'g',3));
 }
 
 void UAlbertaControlWidget::displayVelocityError(int type, QVector<float> error)
 {
-    ui.vel_sol_type_label->setText(QString("%1").arg(type));
+    ui.vel_sol_type_label->setText(getStrVelocityPositionErr(type));
     ui.vel_std_label->setText(QString("%1 %2 %3").arg(error[0],0,'g',3).arg(error[1],0,'g',3).arg(error[2],0,'g',3));
 }
 

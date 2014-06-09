@@ -20,10 +20,6 @@ class QGCMAVLinkMessageSender : public QWidget
 public:
     explicit QGCMAVLinkMessageSender(MAVLinkProtocol* mavlink, QWidget *parent = 0);
     ~QGCMAVLinkMessageSender();
-
-public slots:
-    /** @brief Send message currently selected in ui, taking values from tree view */
-    bool sendMessage();
     
 protected:
     mavlink_message_info_t messageInfo[256];    ///< Meta information about all messages

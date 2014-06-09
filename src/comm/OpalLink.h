@@ -71,22 +71,22 @@ public:
     OpalLink();
     /* Connection management */
 
-    int getId() const;
-    QString getName() const;
-    bool isConnected() const;
+    int getId();
+    QString getName();
+    bool isConnected();
 
     /* Connection characteristics */
 
 
-    qint64 getNominalDataRate() const;
-    bool isFullDuplex() const;
-    int getLinkQuality() const;
+    qint64 getNominalDataRate();
+    bool isFullDuplex();
+    int getLinkQuality();
     qint64 getTotalUpstream();
     qint64 getTotalDownstream();
     qint64 getCurrentUpstream();
     qint64 getMaxUpstream();
-    qint64 getBitsSent() const;
-    qint64 getBitsReceived() const;
+    qint64 getBitsSent();
+    qint64 getBitsReceived();
 
     bool connect();
 

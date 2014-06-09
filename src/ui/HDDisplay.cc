@@ -24,7 +24,6 @@
 #include "ui_HDDisplay.h"
 #include "MG.h"
 #include "QGC.h"
-#include "MainWindow.h"
 #include <QDebug>
 
 HDDisplay::HDDisplay(QStringList* plotList, QString title, QWidget *parent) :
@@ -129,8 +128,8 @@ HDDisplay::HDDisplay(QStringList* plotList, QString title, QWidget *parent) :
     if (font.family() != fontFamilyName) qDebug() << "ERROR! Font not loaded: " << fontFamilyName;
 
     // Connect with UAS
-    connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(setActiveUAS(UASInterface*)), Qt::UniqueConnection);
-    setActiveUAS(UASManager::instance()->getActiveUAS());
+    connect(UASManager::instance(), SIGNAL(activeUASSet(UASInterface*)), this, SLOT(setActiveUAS(UASInterface*)));
+    //start();
 }
 
 HDDisplay::~HDDisplay()
@@ -202,7 +201,9 @@ void HDDisplay::triggerUpdate()
 void HDDisplay::paintEvent(QPaintEvent * event)
 {
     Q_UNUSED(event);
+    quint64 interval = 0;
     //qDebug() << "INTERVAL:" << MG::TIME::getGroundTimeNow() - interval << __FILE__ << __LINE__;
+    interval = QGC::groundTimeMilliseconds();
     renderOverlay();
 }
 
@@ -444,15 +445,7 @@ void HDDisplay::renderOverlay()
     //painter.fillRect(QRect(0, 0, width(), height()), backgroundColor);
     const float spacing = 0.4f; // 40% of width
     const float gaugeWidth = vwidth / (((float)columns) + (((float)columns+1) * spacing + spacing * 0.5f));
-    QColor gaugeColor;
-    if (MainWindow::instance()->getStyle() == MainWindow::QGC_MAINWINDOW_STYLE_LIGHT)
-    {
-        gaugeColor = QColor(0, 0, 0);
-    }
-    else
-    {
-        gaugeColor = QColor(255, 255, 255);
-    }
+    const QColor gaugeColor = QColor(200, 200, 200);
     //drawSystemIndicator(10.0f-gaugeWidth/2.0f, 20.0f, 10.0f, 40.0f, 15.0f, &painter);
     //drawGauge(15.0f, 15.0f, gaugeWidth/2.0f, 0, 1.0f, "thrust", values.value("thrust", 0.0f), gaugeColor, &painter, qMakePair(0.45f, 0.8f), qMakePair(0.8f, 1.0f), true);
     //drawGauge(15.0f+gaugeWidth*1.7f, 15.0f, gaugeWidth/2.0f, 0, 10.0f, "altitude", values.value("altitude", 0.0f), gaugeColor, &painter, qMakePair(1.0f, 2.5f), qMakePair(0.0f, 0.5f), true);
@@ -485,15 +478,16 @@ void HDDisplay::renderOverlay()
  */
 void HDDisplay::setActiveUAS(UASInterface* uas)
 {
-    if (!uas)
-        return;
-    // Disconnect any previously connected active UAS
     if (this->uas != NULL) {
-        removeSource(this->uas);
+        // Disconnect any previously connected active MAV
+        disconnect(this->uas, SIGNAL(valueChanged(int,QString,QString,double,quint64)), this, SLOT(updateValue(int,QString,QString,double,quint64)));
+        disconnect(this->uas, SIGNAL(valueChanged(int,QString,QString,int,quint64)), this, SLOT(updateValue(int,QString,QString,int,quint64)));
     }
 
     // Now connect the new UAS
-	addSource(uas);
+    // Setup communication
+    connect(uas, SIGNAL(valueChanged(int,QString,QString,double,quint64)), this, SLOT(updateValue(int,QString,QString,double,quint64)));
+    connect(uas, SIGNAL(valueChanged(int,QString,QString,int,quint64)), this, SLOT(updateValue(int,QString,QString,int,quint64)));
     this->uas = uas;
 }
 
@@ -584,20 +578,6 @@ void HDDisplay::drawChangeRateStrip(float xRef, float yRef, float height, float 
 
 void HDDisplay::drawGauge(float xRef, float yRef, float radius, float min, float max, QString name, float value, const QColor& color, QPainter* painter, bool symmetric, QPair<float, float> goodRange, QPair<float, float> criticalRange, bool solid)
 {
-    // Select color scheme based on light or dark theme.
-    QColor valueColor;
-    QColor backgroundColor;
-    if (MainWindow::instance()->getStyle() == MainWindow::QGC_MAINWINDOW_STYLE_LIGHT)
-    {
-        valueColor = QColor(26, 75, 95);
-        backgroundColor = QColor(246, 246, 246);
-    }
-    else
-    {
-        valueColor = QGC::colorCyan;
-        backgroundColor = QColor(34, 34, 34);
-    }
-
     // Draw the circle
     QPen circlePen(Qt::SolidLine);
 
@@ -657,7 +637,7 @@ void HDDisplay::drawGauge(float xRef, float yRef, float radius, float min, float
     const float textY = yRef+radius/2.0f;
 
     // Draw background rectangle
-    QBrush brush(backgroundColor, Qt::SolidPattern);
+    QBrush brush(QGC::colorBackground, Qt::SolidPattern);
     painter->setBrush(brush);
     painter->setPen(Qt::NoPen);
 
@@ -686,7 +666,7 @@ void HDDisplay::drawGauge(float xRef, float yRef, float radius, float min, float
 
     // Draw the value
     //painter->setPen(textColor);
-    paintText(label, valueColor, textHeight, textX, textY+nameHeight, painter);
+    paintText(label, QGC::colorCyan, textHeight, textX, textY+nameHeight, painter);
     //paintText(label, color, ((radius - radius/3.0f)*1.1f), xRef-radius/2.5f, yRef+radius/3.0f, painter);
 
     // Draw the needle
@@ -862,39 +842,49 @@ float HDDisplay::refLineWidthToPen(float line)
     return line * 2.50f;
 }
 
-// Connect a generic source
 void HDDisplay::addSource(QObject* obj)
 {
-    connect(obj, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)), this, SLOT(updateValue(int,QString,QString,QVariant,quint64)));
+    //genericSources.append(obj);
+    // FIXME XXX HACK
+//    if (plots.size() > 0)
+//    {
+        // Connect generic source
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,int,quint64)), this, SLOT(updateValue(int,QString,QString,int,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,unsigned int,quint64)), this, SLOT(updateValue(int,QString,QString,unsigned int,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,quint64,quint64)), this, SLOT(updateValue(int,QString,QString,quint64,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,qint64,quint64)), this, SLOT(updateValue(int,QString,QString,qint64,quint64)));
+        connect(obj, SIGNAL(valueChanged(int,QString,QString,double,quint64)), this, SLOT(updateValue(int,QString,QString,double,quint64)));
+//    }
 }
 
-// Disconnect a generic source
-void HDDisplay::removeSource(QObject* obj)
+void HDDisplay::updateValue(const int uasId, const QString& name, const QString& unit, const int value, const quint64 msec)
 {
-    disconnect(obj, SIGNAL(valueChanged(int,QString,QString,QVariant,quint64)), this, SLOT(updateValue(int,QString,QString,QVariant,quint64)));
+    if (!intValues.contains(name)) intValues.insert(name, true);
+    updateValue(uasId, name, unit, (double)value, msec);
 }
 
-void HDDisplay::updateValue(const int uasId, const QString& name, const QString& unit, const QVariant &variant, const quint64 msec)
+void HDDisplay::updateValue(const int uasId, const QString& name, const QString& unit, const unsigned int value, const quint64 msec)
+{
+    if (!intValues.contains(name)) intValues.insert(name, true);
+    updateValue(uasId, name, unit, (double)value, msec);
+}
+
+void HDDisplay::updateValue(const int uasId, const QString& name, const QString& unit, const qint64 value, const quint64 msec)
+{
+    if (!intValues.contains(name)) intValues.insert(name, true);
+    updateValue(uasId, name, unit, (double)value, msec);
+}
+
+void HDDisplay::updateValue(const int uasId, const QString& name, const QString& unit, const quint64 value, const quint64 msec)
+{
+    if (!intValues.contains(name)) intValues.insert(name, true);
+    updateValue(uasId, name, unit, (double)value, msec);
+}
+
+void HDDisplay::updateValue(const int uasId, const QString& name, const QString& unit, const double value, const quint64 msec)
 {
     Q_UNUSED(uasId);
     Q_UNUSED(unit);
-
-    QMetaType::Type type = static_cast< QMetaType::Type>(variant.type());
-    if(type == QMetaType::QByteArray || type == QMetaType::QString)
-        return;
-
-    bool ok;
-    double value = variant.toDouble(&ok);
-    if(!ok)
-        return;
-
-    if(type == QMetaType::Int || type == QMetaType::UInt || type == QMetaType::Long || type == QMetaType::LongLong
-       || type == QMetaType::Short || type == QMetaType::Char || type == QMetaType::ULong || type == QMetaType::ULongLong
-       || type == QMetaType::UShort || type == QMetaType::UChar || type == QMetaType::Bool ) {
-            if (!intValues.contains(name))
-                intValues.insert(name, true);
-    }
-
     // Update mean
     const float oldMean = valuesMean.value(name, 0.0f);
     const int meanCount = valuesCount.value(name, 0);

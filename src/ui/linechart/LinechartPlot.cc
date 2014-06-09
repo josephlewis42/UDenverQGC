@@ -22,7 +22,6 @@
 #include <LinechartPlot.h>
 #include <MG.h>
 #include <QPaintEngine>
-#include "ChartPlot.h"
 
 #include "QGC.h"
 
@@ -32,8 +31,7 @@
  * @param parent The parent widget
  * @param interval The maximum interval for which data is stored (default: 30 minutes) in milliseconds
  **/
-LinechartPlot::LinechartPlot(QWidget *parent, int plotid, quint64 interval):
-    ChartPlot(parent),
+LinechartPlot::LinechartPlot(QWidget *parent, int plotid, quint64 interval): QwtPlot(parent),
     minTime(0),
     lastTime(0),
     maxTime(100),
@@ -49,16 +47,54 @@ LinechartPlot::LinechartPlot(QWidget *parent, int plotid, quint64 interval):
     this->plotid = plotid;
     this->plotInterval = interval;
 
-    maxValue = -DBL_MAX;
+    maxValue = DBL_MIN;
     minValue = DBL_MAX;
 
     //lastMaxTimeAdded = QTime();
 
+    curves = QMap<QString, QwtPlotCurve*>();
     data = QMap<QString, TimeSeriesData*>();
     scaleMaps = QMap<QString, QwtScaleMap*>();
 
     yScaleEngine = new QwtLinearScaleEngine();
     setAxisScaleEngine(QwtPlot::yLeft, yScaleEngine);
+
+    /* Create color map */
+    colors = QList<QColor>();
+    nextColor = 0;
+
+    ///> Color map for plots, includes 20 colors
+    ///> Map will start from beginning when the first 20 colors are exceeded
+    colors.append(QColor(242,255,128));
+    colors.append(QColor(70,80,242));
+    colors.append(QColor(232,33,47));
+    colors.append(QColor(116,251,110));
+    colors.append(QColor(81,183,244));
+    colors.append(QColor(234,38,107));
+    colors.append(QColor(92,247,217));
+    colors.append(QColor(151,59,239));
+    colors.append(QColor(231,72,28));
+    colors.append(QColor(236,48,221));
+    colors.append(QColor(75,133,243));
+    colors.append(QColor(203,254,121));
+    colors.append(QColor(104,64,240));
+    colors.append(QColor(200,54,238));
+    colors.append(QColor(104,250,138));
+    colors.append(QColor(235,43,165));
+    colors.append(QColor(98,248,176));
+    colors.append(QColor(161,252,116));
+    colors.append(QColor(87,231,246));
+    colors.append(QColor(230,126,23));
+
+    setAutoReplot(false);
+
+    // Set grid
+    QwtPlotGrid *grid = new QwtPlotGrid;
+    grid->setMinPen(QPen(Qt::darkGray, 0, Qt::DotLine));
+    grid->setMajPen(QPen(Qt::gray, 0, Qt::DotLine));
+    grid->enableXMin(true);
+    // TODO xmin?
+    grid->attach(this);
 
     // Set left scale
     //setAxisOptions(QwtPlot::yLeft, QwtAutoScale::Logarithmic);
@@ -75,6 +111,15 @@ LinechartPlot::LinechartPlot(QWidget *parent, int plotid, quint64 interval):
     bottomScaleWidget->setMinBorderDist(fontMetricsX * 2, fontMetricsX / 2);
 
     plotLayout()->setAlignCanvasToScales(true);
+
+    // Set canvas background
+    setCanvasBackground(QColor(40, 40, 40));
+
+    // Enable zooming
+    //zoomer = new Zoomer(canvas());
+    zoomer = new ScrollZoomer(canvas());
+    zoomer->setRubberBandPen(QPen(Qt::blue, 1.2, Qt::DotLine));
+    zoomer->setTrackerPen(QPen(Qt::blue));
 
     // Start QTimer for plot update
     updateTimer = new QTimer(this);
@@ -235,9 +280,9 @@ void LinechartPlot::appendData(QString dataname, quint64 ms, double value)
     if(!data.contains(dataname)) {
         addCurve(dataname);
         enforceGroundTime(m_groundTime);
-//        qDebug() << "ADDING CURVE WITH" << dataname << ms << value;
-//        qDebug() << "MINTIME:" << minTime << "MAXTIME:" << maxTime;
-//        qDebug() << "LASTTIME:" << lastTime;
+        qDebug() << "ADDING CURVE WITH" << dataname << ms << value;
+        qDebug() << "MINTIME:" << minTime << "MAXTIME:" << maxTime;
+        qDebug() << "LASTTIME:" << lastTime;
     }
 
     // Add new value
@@ -352,6 +397,19 @@ void LinechartPlot::addCurve(QString id)
     emit curveAdded(id);
 }
 
+QColor LinechartPlot::getNextColor()
+{
+    /* Return current color and increment counter for next round */
+    nextColor++;
+    if(nextColor >= colors.count()) nextColor = 0;
+    return colors[nextColor++];
+}
+
+QColor LinechartPlot::getColorForCurve(QString id)
+{
+    return curves.value(id)->pen().color();
+}
+
 /**
  * @brief Set the time window for the plot
  * The time window defines which data is shown in the plot.
@@ -378,6 +436,22 @@ void LinechartPlot::setWindowPosition(quint64 end)
 quint64 LinechartPlot::getWindowPosition()
 {
     return plotPosition;
+}
+
+/**
+ * @brief Set the color of a curve
+ *
+ * This method emits the colorSet(id, color) signal.
+ *
+ * @param id The id-string of the curve
+ * @param color The newly assigned color
+ **/
+void LinechartPlot::setCurveColor(QString id, QColor color)
+{
+    QwtPlotCurve* curve = curves.value(id);
+    curve->setPen(color);
+
+    emit colorSet(id, color);
 }
 
 /**
@@ -458,21 +532,6 @@ void LinechartPlot::showCurve(QString id)
 //    //@TODO Implement this position-dependent
 //    curves.value(id)->show();
 //}
-
-/**
- * @brief Set the color of a curve and its symbols.
- *
- * @param id The id-string of the curve
- * @param color The newly assigned color
- **/
-void LinechartPlot::setCurveColor(QString id, QColor color)
-{
-    QwtPlotCurve* curve = curves.value(id);
-    curve->setPen(QPen(QBrush(color), curveWidth));
-    QwtSymbol x = curve->symbol();
-    x.setPen(QPen(QBrush(color), symbolWidth));
-    curve->setSymbol(x);
-}
 
 /**
  * @brief Check the visibility of a curve
@@ -566,29 +625,13 @@ quint64 LinechartPlot::getPlotInterval()
  **/
 void LinechartPlot::setPlotInterval(int interval)
 {
-    //Only ever increase the amount of stored data,
-    // so that we allow the user to change between
-    // different intervals without constantly losing
-    // data points
-    if((unsigned)interval > plotInterval) {
-
-        QMap<QString, TimeSeriesData*>::iterator j;
-        for(j = data.begin(); j != data.end(); ++j)
-        {
-            TimeSeriesData* d = data.value(j.key());
-            d->setInterval(interval);
-        }
-    }
     plotInterval = interval;
-    if(plotInterval > 5*60*1000) //If the interval is longer than 4 minutes, change the time scale step to 2 minutes
-        timeScaleStep = 2*60*1000;
-    else if(plotInterval >= 4*60*1000) //If the interval is longer than 4 minutes, change the time scale step to 1 minutes
-        timeScaleStep = 1*60*1000;
-    else if(plotInterval >= 60*1000) //If the interval is longer than a minute, change the time scale step to 30 seconds
-        timeScaleStep = 30*1000;
-    else
-        timeScaleStep = DEFAULT_SCALE_INTERVAL;
-
+    QMap<QString, TimeSeriesData*>::iterator j;
+    for(j = data.begin(); j != data.end(); ++j)
+    {
+        TimeSeriesData* d = data.value(j.key());
+        d->setInterval(interval);
+    }
 }
 
 /**
@@ -602,6 +645,11 @@ void LinechartPlot::setPlotInterval(int interval)
 quint64 LinechartPlot::getDataInterval()
 {
     return storageInterval;
+}
+
+QList<QColor> LinechartPlot::getColorMap()
+{
+    return colors;
 }
 
 /**

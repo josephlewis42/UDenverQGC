@@ -36,8 +36,6 @@ This file is part of the QGROUNDCONTROL project
 #include "QGCSensorSettingsWidget.h"
 
 #include <QDebug>
-#include <QSettings>
-#include "MainWindow.h"
 
 ParameterInterface::ParameterInterface(QWidget *parent) :
     QWidget(parent),
@@ -46,15 +44,6 @@ ParameterInterface::ParameterInterface(QWidget *parent) :
     m_ui(new Ui::parameterWidget)
 {
     m_ui->setupUi(this);
-
-    QSettings settings;
-    enum MainWindow::CUSTOM_MODE mode = static_cast<enum MainWindow::CUSTOM_MODE>(settings.value("QGC_CUSTOM_MODE", MainWindow::CUSTOM_MODE_NONE).toInt());
-
-    if (mode == MainWindow::CUSTOM_MODE_PX4)
-    {
-        delete m_ui->sensorSettings;
-        m_ui->sensorSettings = NULL;
-    }
 
     // Get current MAV list
     QList<UASInterface*> systems = UASManager::instance()->getUASList();
@@ -72,15 +61,13 @@ ParameterInterface::ParameterInterface(QWidget *parent) :
 
 ParameterInterface::~ParameterInterface()
 {
-    delete paramWidgets;
     delete m_ui;
 }
 
 void ParameterInterface::selectUAS(int index)
 {
     m_ui->stackedWidget->setCurrentIndex(index);
-    if (m_ui->sensorSettings)
-        m_ui->sensorSettings->setCurrentIndex(index);
+    m_ui->sensorSettings->setCurrentIndex(index);
     curr = index;
 }
 
@@ -90,37 +77,19 @@ void ParameterInterface::selectUAS(int index)
  */
 void ParameterInterface::addUAS(UASInterface* uas)
 {
-    int uasId = uas->getUASID();
-    qDebug() << "ParameterInterface::addUAS : " << uasId ;
+    QGCParamWidget* param = new QGCParamWidget(uas, this);
+    paramWidgets->insert(uas->getUASID(), param);
+    m_ui->stackedWidget->addWidget(param);
 
-    if (paramWidgets->contains(uasId) ) {
-        return;
-    }
 
-    QGCParamWidget* paramWidget = new QGCParamWidget(this);
-    paramWidget = (QGCParamWidget*)paramWidget->initWithUAS(uas);
-
-    QString ptrStr;
-    ptrStr.sprintf("QGCParamWidget %8p (parent %8p)", paramWidget,this);
-    qDebug() << "Created " << ptrStr << " for UAS id: " << uasId << " count: " << paramWidgets->count();
-
-    paramWidgets->insert(uasId, paramWidget);
-    m_ui->stackedWidget->addWidget(paramWidget);
-
-    QGCSensorSettingsWidget* sensor = NULL;
-
-    if (m_ui->sensorSettings)
-    {
-        sensor = new QGCSensorSettingsWidget(uas, this);
-        m_ui->sensorSettings->addWidget(sensor);
-    }
+    QGCSensorSettingsWidget* sensor = new QGCSensorSettingsWidget(uas, this);
+    m_ui->sensorSettings->addWidget(sensor);
 
     // Set widgets as default
     if (curr == -1) {
         // Clear
-        if (m_ui->sensorSettings && sensor)
-            m_ui->sensorSettings->setCurrentWidget(sensor);
-        m_ui->stackedWidget->setCurrentWidget(paramWidget);
+        m_ui->sensorSettings->setCurrentWidget(sensor);
+        m_ui->stackedWidget->setCurrentWidget(param);
         curr = 0;
     }
 }

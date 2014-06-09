@@ -35,11 +35,11 @@ This file is part of the QGROUNDCONTROL project
 #include <QGLWidget>
 
 WebImage::WebImage()
- : mState(WebImage::UNINITIALIZED)
- , mSourceURL("")
- , mImage(0)
- , mLastReference(0)
- , mSyncFlag(false)
+    : state(WebImage::UNINITIALIZED)
+    , sourceURL("")
+    , image(0)
+    , lastReference(0)
+    , syncFlag(false)
 {
 
 }
@@ -47,58 +47,54 @@ WebImage::WebImage()
 void
 WebImage::clear(void)
 {
-    mImage.reset();
-    mSourceURL.clear();
-    mState = WebImage::UNINITIALIZED;
-    mLastReference = 0;
+    image.reset();
+    sourceURL.clear();
+    state = WebImage::UNINITIALIZED;
+    lastReference = 0;
 }
 
 WebImage::State
 WebImage::getState(void) const
 {
-    return mState;
+    return state;
 }
 
 void
 WebImage::setState(State state)
 {
-    mState = state;
+    this->state = state;
 }
 
 const QString&
 WebImage::getSourceURL(void) const
 {
-    return mSourceURL;
+    return sourceURL;
 }
 
 void
 WebImage::setSourceURL(const QString& url)
 {
-    mSourceURL = url;
+    sourceURL = url;
 }
 
 uchar*
 WebImage::getImageData(void) const
 {
-    return mImage->scanLine(0);
+    return image->scanLine(0);
 }
 
 bool
 WebImage::setData(const QByteArray& data)
 {
     QImage tempImage;
-    if (tempImage.loadFromData(data))
-    {
-        if (mImage.isNull())
-        {
-            mImage.reset(new QImage);
+    if (tempImage.loadFromData(data)) {
+        if (image.isNull()) {
+            image.reset(new QImage);
         }
-        *mImage = QGLWidget::convertToGLFormat(tempImage);
+        *image = QGLWidget::convertToGLFormat(tempImage);
 
         return true;
-    }
-    else
-    {
+    } else {
         return false;
     }
 }
@@ -107,18 +103,14 @@ bool
 WebImage::setData(const QString& filename)
 {
     QImage tempImage;
-    if (tempImage.load(filename))
-    {
-        if (mImage.isNull())
-        {
-            mImage.reset(new QImage);
+    if (tempImage.load(filename)) {
+        if (image.isNull()) {
+            image.reset(new QImage);
         }
-        *mImage = QGLWidget::convertToGLFormat(tempImage);
+        *image = QGLWidget::convertToGLFormat(tempImage);
 
         return true;
-    }
-    else
-    {
+    } else {
         return false;
     }
 }
@@ -126,41 +118,41 @@ WebImage::setData(const QString& filename)
 int
 WebImage::getWidth(void) const
 {
-    return mImage->width();
+    return image->width();
 }
 
 int
 WebImage::getHeight(void) const
 {
-    return mImage->height();
+    return image->height();
 }
 
 int
 WebImage::getByteCount(void) const
 {
-    return mImage->byteCount();
+    return image->byteCount();
 }
 
-quint64
+ulong
 WebImage::getLastReference(void) const
 {
-    return mLastReference;
+    return lastReference;
 }
 
 void
-WebImage::setLastReference(quint64 value)
+WebImage::setLastReference(ulong value)
 {
-    mLastReference = value;
+    lastReference = value;
 }
 
 bool
 WebImage::getSyncFlag(void) const
 {
-    return mSyncFlag;
+    return syncFlag;
 }
 
 void
 WebImage::setSyncFlag(bool onoff)
 {
-    mSyncFlag = onoff;
+    syncFlag = onoff;
 }

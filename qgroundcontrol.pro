@@ -1,4 +1,4 @@
-# -------------------------------------------------
+    # -------------------------------------------------
 # QGroundControl - Micro Air Vehicle Groundstation
 # Please see our website at <http://qgroundcontrol.org>
 # Maintainer:
@@ -20,116 +20,131 @@
 
 # Qt configuration
 CONFIG += qt \
-    thread \
-    console
-
+	thread
 QT += network \
     opengl \
     svg \
     xml \
     phonon \
     webkit \
-    sql \
-    declarative
+    sql
 
 TEMPLATE = app
 TARGET = qgroundcontrol
 BASEDIR = $${IN_PWD}
-linux-g++|linux-g++-64{
-    debug {
-        TARGETDIR = $${OUT_PWD}/debug
-        BUILDDIR = $${OUT_PWD}/build-debug
-    }
-    release {
-        TARGETDIR = $${OUT_PWD}/release
-        BUILDDIR = $${OUT_PWD}/build-release
-    }
-} else {
-    TARGETDIR = $${OUT_PWD}
-    BUILDDIR = $${OUT_PWD}/build
-}
-
-
-
+TARGETDIR = $${OUT_PWD}
+BUILDDIR = $${TARGETDIR}/build
 LANGUAGE = C++
 OBJECTS_DIR = $${BUILDDIR}/obj
 MOC_DIR = $${BUILDDIR}/moc
 UI_DIR = $${BUILDDIR}/ui
 RCC_DIR = $${BUILDDIR}/rcc
 MAVLINK_CONF = ""
-MAVLINKPATH = $$BASEDIR/libs/mavlink/include/mavlink/v1.0
 DEFINES += MAVLINK_NO_DATA
 
 win32 {
-	VERSION = 2.0.0.227
-	QMAKE_TARGET_COMPANY = qgroundcontrol.org
-	QMAKE_TARGET_PRODUCT = qgroundcontrol
-	QMAKE_TARGET_DESCRIPTION = "Open source ground control app provided by QGroundControl dev team"
-	QMAKE_TARGET_COPYRIGHT = "Copyright (C) 2013 QGroundControl Development Team. All rights reserved."
-
-    QMAKE_INCDIR_QT = $$(QTDIR)/include
-    QMAKE_LIBDIR_QT = $$(QTDIR)/lib
-    QMAKE_UIC = "$$(QTDIR)/bin/uic.exe"
-    QMAKE_MOC = "$$(QTDIR)/bin/moc.exe"
-    QMAKE_RCC = "$$(QTDIR)/bin/rcc.exe"
-    QMAKE_QMAKE = "$$(QTDIR)/bin/qmake.exe"
-	
-	# Build QAX for GoogleEarth API access
-	!exists( $(QTDIR)/src/activeqt/Makefile ) {
-		message( Making QAx (ONE TIME) )
-		system( cd $$(QTDIR)\\src\\activeqt && $$(QTDIR)\\bin\\qmake.exe )
-		system( cd $$(QTDIR)\\src\\activeqt\\container && $$(QTDIR)\\bin\\qmake.exe )
-		system( cd $$(QTDIR)\\src\\activeqt\\control && $$(QTDIR)\\bin\\qmake.exe )
-                system( cd $$(QTDIR)\\src\\activeqt && nmake )
-	}
+QMAKE_INCDIR_QT = $$(QTDIR)/include
+QMAKE_LIBDIR_QT = $$(QTDIR)/lib
+QMAKE_UIC = "$$(QTDIR)/bin/uic.exe"
+QMAKE_MOC = "$$(QTDIR)/bin/moc.exe"
+QMAKE_RCC = "$$(QTDIR)/bin/rcc.exe"
+QMAKE_QMAKE = "$$(QTDIR)/bin/qmake.exe"
 }
 
-macx {
-    QMAKE_INFO_PLIST = Custom-Info.plist
-}
+
 
 #################################################################
 # EXTERNAL LIBRARY CONFIGURATION
 
+# Include NMEA parsing library (currently unused)
+include(src/libs/nmea/nmea.pri)
+
 # EIGEN matrix library (header-only)
-INCLUDEPATH += libs/eigen
+INCLUDEPATH += src/libs/eigen
 
 # OPMapControl library (from OpenPilot)
-include(libs/utils/utils_external.pri)
-include(libs/opmapcontrol/opmapcontrol_external.pri)
+include(src/libs/utils/utils_external.pri)
+include(src/libs/opmapcontrol/opmapcontrol_external.pri)
 DEPENDPATH += \
-    libs/utils \
-    libs/utils/src \
-    libs/opmapcontrol \
-    libs/opmapcontrol/src \
-    libs/opmapcontrol/src/mapwidget
+    src/libs/utils \
+    src/libs/utils/src \
+    src/libs/opmapcontrol \
+    src/libs/opmapcontrol/src \
+    src/libs/opmapcontrol/src/mapwidget
 
 INCLUDEPATH += \
-    libs/utils \
-    libs \
-    libs/opmapcontrol
+    src/libs/utils \
+    src/libs \
+    src/libs/opmapcontrol
 
 # If the user config file exists, it will be included.
 # if the variable MAVLINK_CONF contains the name of an
 # additional project, QGroundControl includes the support
-# of custom MAVLink messages of this project. It will also
-# create a QGC_USE_{AUTOPILOT_NAME}_MESSAGES macro for use
-# within the actual code.
-exists(user_config.pri) {
+# of custom MAVLink messages of this project
+exists(user_config.pri) { 
     include(user_config.pri)
     message("----- USING CUSTOM USER QGROUNDCONTROL CONFIG FROM user_config.pri -----")
     message("Adding support for additional MAVLink messages for: " $$MAVLINK_CONF)
     message("------------------------------------------------------------------------")
-} else {
-    MAVLINK_CONF += ardupilotmega
 }
-INCLUDEPATH += $$MAVLINKPATH
-isEmpty(MAVLINK_CONF) {
-    INCLUDEPATH += $$MAVLINKPATH/common
-} else {
-    INCLUDEPATH += $$MAVLINKPATH/$$MAVLINK_CONF
-    DEFINES += $$sprintf('QGC_USE_%1_MESSAGES', $$upper($$MAVLINK_CONF))
+INCLUDEPATH += $$BASEDIR/../mavlink/include/common
+INCLUDEPATH += $$BASEDIR/../mavlink/include
+INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/common
+INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include
+contains(MAVLINK_CONF, pixhawk) { 
+    # Remove the default set - it is included anyway
+    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+
+    # PIXHAWK SPECIAL MESSAGES
+    INCLUDEPATH += $$BASEDIR/../mavlink/include/pixhawk
+    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/pixhawk
+    DEFINES += QGC_USE_PIXHAWK_MESSAGES
 }
+contains(MAVLINK_CONF, slugs) { 
+    # Remove the default set - it is included anyway
+    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    
+    # SLUGS SPECIAL MESSAGES
+    INCLUDEPATH += $$BASEDIR/../mavlink/include/slugs
+    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/slugs
+    DEFINES += QGC_USE_SLUGS_MESSAGES
+}
+contains(MAVLINK_CONF, ualberta) { 
+    # Remove the default set - it is included anyway
+    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    
+    # UALBERTA SPECIAL MESSAGES
+    INCLUDEPATH += $$BASEDIR/../mavlink/include/ualberta
+    DEFINES += QGC_USE_UALBERTA_MESSAGES
+
+    #NOTE this will always produce release -jal 2013-09-27
+    #CONFIG -= debug
+    #CONFIG += release
+}
+contains(MAVLINK_CONF, ardupilotmega) { 
+    # Remove the default set - it is included anyway
+    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    
+    # UALBERTA SPECIAL MESSAGES
+    INCLUDEPATH += $$BASEDIR/../mavlink/include/ardupilotmega
+    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/ardupilotmega
+    DEFINES += QGC_USE_ARDUPILOTMEGA_MESSAGES
+}
+contains(MAVLINK_CONF, senseSoar) { 
+    # Remove the default set - it is included anyway
+    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    
+    # SENSESOAR SPECIAL MESSAGES
+    INCLUDEPATH += $$BASEDIR/../mavlink/include/SenseSoar
+    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/SenseSoar
+    DEFINES += QGC_USE_SENSESOAR_MESSAGES
+}
+
 
 # Include general settings for QGroundControl
 # necessary as last include to override any non-acceptable settings
@@ -137,7 +152,6 @@ isEmpty(MAVLINK_CONF) {
 include(qgroundcontrol.pri)
 
 # Include MAVLink generator
-# has been deprecated
 DEPENDPATH += \
     src/apps/mavlinkgen
 
@@ -148,45 +162,32 @@ INCLUDEPATH += \
 
 include(src/apps/mavlinkgen/mavlinkgen.pri)
 
-# Include QUpgrade tool
-exists(qupgrade) {
-    SOURCES += qupgrade/src/apps/qupgrade/qgcfirmwareupgradeworker.cpp \
-               qupgrade/src/apps/qupgrade/uploader.cpp \
-               qupgrade/src/apps/qupgrade/dialog_bare.cpp \
-               qupgrade/src/apps/qupgrade/boardwidget.cpp
 
-    HEADERS += qupgrade/src/apps/qupgrade/qgcfirmwareupgradeworker.h \
-               qupgrade/src/apps/qupgrade/uploader.h \
-               qupgrade/src/apps/qupgrade/dialog_bare.h \
-               qupgrade/src/apps/qupgrade/boardwidget.h
-
-    FORMS += qupgrade/src/apps/qupgrade/dialog_bare.ui \
-             qupgrade/src/apps/qupgrade/boardwidget.ui
-
-    RESOURCES += qupgrade/qupgrade.qrc
-
-    linux*:CONFIG += qesp_linux_udev
-
-    include(qupgrade/libs/qextserialport/src/qextserialport.pri)
-
-    INCLUDEPATH += qupgrade/src/apps/qupgrade
-
-    DEFINES += "QUPGRADE_SUPPORT"
-}
-
-# Include GLC library
-#include(libs/GLC_lib/glc_lib.pri)
 
 # Include QWT plotting library
-include(libs/qwt/qwt.pri)
-
+include(src/lib/qwt/qwt.pri)
 DEPENDPATH += . \
-    plugins
+    plugins \
+    thirdParty/qserialport/include \
+    thirdParty/qserialport/include/QtSerialPort \
+    thirdParty/qserialport \
+    src/libs/qextserialport
 
-INCLUDEPATH += .
+INCLUDEPATH += . \
+    thirdParty/qserialport/include \
+    thirdParty/qserialport/include/QtSerialPort \
+    thirdParty/qserialport/src \
+    src/libs/qextserialport
 
-# Include serial port library (QSerialPort)
-include(libs/serialport/qserialport.pri)
+# Include serial port library (QSerial)
+include(thirdParty/qserialport/qgroundcontrol-qserialport.pri)
+
+# Serial port detection (ripped-off from qextserialport library)
+macx|macx-g++|macx-g++42::SOURCES += src/libs/qextserialport/qextserialenumerator_osx.cpp
+linux-g++::SOURCES += src/libs/qextserialport/qextserialenumerator_unix.cpp
+linux-g++-64::SOURCES += src/libs/qextserialport/qextserialenumerator_unix.cpp
+win32::SOURCES += src/libs/qextserialport/qextserialenumerator_win.cpp
+win32-msvc2008|win32-msvc2010::SOURCES += src/libs/qextserialport/qextserialenumerator_win.cpp
 
 # Input
 FORMS += src/ui/MainWindow.ui \
@@ -198,7 +199,7 @@ FORMS += src/ui/MainWindow.ui \
     src/ui/Linechart.ui \
     src/ui/UASView.ui \
     src/ui/ParameterInterface.ui \
-    src/ui/WaypointList.ui \
+    src/ui/WaypointList.ui \    
     src/ui/ObjectDetectionView.ui \
     src/ui/JoystickWidget.ui \
     src/ui/DebugConsole.ui \
@@ -226,83 +227,24 @@ FORMS += src/ui/MainWindow.ui \
     src/ui/designer/QGCCommandButton.ui \
     src/ui/QGCMAVLinkLogPlayer.ui \
     src/ui/QGCWaypointListMulti.ui \
+    src/ui/mission/QGCCustomWaypointAction.ui \
     src/ui/QGCUDPLinkConfiguration.ui \
     src/ui/QGCSettingsWidget.ui \
     src/ui/UASControlParameters.ui \
+    src/ui/mission/QGCMissionDoWidget.ui \
+    src/ui/mission/QGCMissionConditionWidget.ui \
     src/ui/map/QGCMapTool.ui \
     src/ui/map/QGCMapToolBar.ui \
     src/ui/QGCMAVLinkInspector.ui \
-    src/ui/WaypointViewOnlyView.ui \
-    src/ui/WaypointEditableView.ui \
+    src/ui/WaypointViewOnlyView.ui \    
+    src/ui/WaypointEditableView.ui \    
+    src/ui/UnconnectedUASInfoWidget.ui \
     src/ui/mavlink/QGCMAVLinkMessageSender.ui \
     src/ui/firmwareupdate/QGCFirmwareUpdateWidget.ui \
     src/ui/QGCPluginHost.ui \
     src/ui/firmwareupdate/QGCPX4FirmwareUpdate.ui \
-    src/ui/mission/QGCMissionOther.ui \
-    src/ui/mission/QGCMissionNavWaypoint.ui \
-    src/ui/mission/QGCMissionDoJump.ui \
-    src/ui/mission/QGCMissionConditionDelay.ui \
-    src/ui/mission/QGCMissionNavLoiterUnlim.ui \
-    src/ui/mission/QGCMissionNavLoiterTurns.ui \
-    src/ui/mission/QGCMissionNavLoiterTime.ui \
-    src/ui/mission/QGCMissionNavReturnToLaunch.ui \
-    src/ui/mission/QGCMissionNavLand.ui \
-    src/ui/mission/QGCMissionNavTakeoff.ui \
-    src/ui/mission/QGCMissionNavSweep.ui \
-    src/ui/mission/QGCMissionDoStartSearch.ui \
-    src/ui/mission/QGCMissionDoFinishSearch.ui \
-    src/ui/QGCVehicleConfig.ui \
-    src/ui/QGCPX4VehicleConfig.ui \
-    src/ui/QGCHilConfiguration.ui \
-    src/ui/QGCHilFlightGearConfiguration.ui \
-    src/ui/QGCHilJSBSimConfiguration.ui \
-    src/ui/QGCHilXPlaneConfiguration.ui \
-    src/ui/designer/QGCComboBox.ui \
-    src/ui/designer/QGCTextLabel.ui \
-    src/ui/uas/UASQuickView.ui \
-    src/ui/uas/UASQuickViewItemSelect.ui \
-    src/ui/uas/UASActionsWidget.ui \
-    src/ui/QGCTabbedInfoView.ui \
-    src/ui/UASRawStatusView.ui \
-    src/ui/uas/QGCMessageView.ui \
-    src/ui/JoystickButton.ui \
-    src/ui/JoystickAxis.ui \
-    src/ui/configuration/ApmHardwareConfig.ui \
-    src/ui/configuration/ApmSoftwareConfig.ui \
-    src/ui/configuration/FrameTypeConfig.ui \
-    src/ui/configuration/CompassConfig.ui \
-    src/ui/configuration/AccelCalibrationConfig.ui \
-    src/ui/configuration/RadioCalibrationConfig.ui \
-    src/ui/configuration/FlightModeConfig.ui \
-    src/ui/configuration/Radio3DRConfig.ui \
-    src/ui/configuration/BatteryMonitorConfig.ui \
-    src/ui/configuration/SonarConfig.ui \
-    src/ui/configuration/AirspeedConfig.ui \
-    src/ui/configuration/OpticalFlowConfig.ui \
-    src/ui/configuration/OsdConfig.ui \
-    src/ui/configuration/AntennaTrackerConfig.ui \
-    src/ui/configuration/CameraGimbalConfig.ui \
-    src/ui/configuration/BasicPidConfig.ui \
-    src/ui/configuration/StandardParamConfig.ui \
-    src/ui/configuration/GeoFenceConfig.ui \
-    src/ui/configuration/FailSafeConfig.ui \
-    src/ui/configuration/AdvancedParamConfig.ui \
-    src/ui/configuration/ArduCopterPidConfig.ui \
-    src/ui/configuration/ApmPlaneLevel.ui \
-    src/ui/configuration/ParamWidget.ui \
-    src/ui/configuration/ArduPlanePidConfig.ui \
-    src/ui/configuration/AdvParameterList.ui \
-    src/ui/configuration/ArduRoverPidConfig.ui \
-    src/ui/QGCConfigView.ui \
-    src/ui/main/QGCViewModeSelection.ui \
-    src/ui/main/QGCWelcomeMainWindow.ui \
-    src/ui/configuration/terminalconsole.ui \
-    src/ui/configuration/SerialSettingsDialog.ui \
-    src/ui/configuration/ApmFirmwareConfig.ui \
-    src/ui/px4_configuration/QGCPX4AirframeConfig.ui \
-    src/ui/px4_configuration/QGCPX4MulticopterConfig.ui \
-    src/ui/px4_configuration/QGCPX4SensorCalibration.ui
-
+    src/ui/ualberta/UAlbertaControlWidget.ui \
+    src/ui/UDenverAutopilotRemote.ui
 INCLUDEPATH += src \
     src/ui \
     src/ui/linechart \
@@ -317,10 +259,7 @@ INCLUDEPATH += src \
     src/ui/param \
     src/ui/watchdog \
     src/ui/map3D \
-    src/ui/mission \
-    src/ui/designer \
-    src/ui/configuration \
-    src/ui/main
+    src/ui/designer
 HEADERS += src/MG.h \
     src/QGCCore.h \
     src/uas/UASInterface.h \
@@ -333,8 +272,6 @@ HEADERS += src/MG.h \
     src/comm/ProtocolInterface.h \
     src/comm/MAVLinkProtocol.h \
     src/comm/QGCFlightGearLink.h \
-    src/comm/QGCJSBSimLink.h \
-    src/comm/QGCXPlaneLink.h \
     src/ui/CommConfigurationWindow.h \
     src/ui/SerialConfigurationWindow.h \
     src/ui/MainWindow.h \
@@ -353,7 +290,7 @@ HEADERS += src/MG.h \
     src/comm/UDPLink.h \
     src/ui/ParameterInterface.h \
     src/ui/WaypointList.h \
-    src/Waypoint.h \
+    src/Waypoint.h \   
     src/ui/ObjectDetectionView.h \
     src/input/JoystickInput.h \
     src/ui/JoystickWidget.h \
@@ -408,124 +345,43 @@ HEADERS += src/MG.h \
     src/ui/QGCUDPLinkConfiguration.h \
     src/ui/QGCSettingsWidget.h \
     src/ui/uas/UASControlParameters.h \
+    src/ui/mission/QGCMissionDoWidget.h \
+    src/ui/mission/QGCMissionConditionWidget.h \
     src/uas/QGCUASParamManager.h \
     src/ui/map/QGCMapWidget.h \
     src/ui/map/MAV2DIcon.h \
     src/ui/map/Waypoint2DIcon.h \
     src/ui/map/QGCMapTool.h \
     src/ui/map/QGCMapToolBar.h \
+    src/libs/qextserialport/qextserialenumerator.h \
     src/QGCGeo.h \
     src/ui/QGCToolBar.h \
-    src/ui/QGCStatusBar.h \
     src/ui/QGCMAVLinkInspector.h \
     src/ui/MAVLinkDecoder.h \
     src/ui/WaypointViewOnlyView.h \
-    src/ui/WaypointEditableView.h \
+    src/ui/WaypointViewOnlyView.h \
+    src/ui/WaypointEditableView.h \    
+    src/ui/UnconnectedUASInfoWidget.h \
     src/ui/QGCRGBDView.h \
     src/ui/mavlink/QGCMAVLinkMessageSender.h \
     src/ui/firmwareupdate/QGCFirmwareUpdateWidget.h \
     src/ui/QGCPluginHost.h \
     src/ui/firmwareupdate/QGCPX4FirmwareUpdate.h \
-    src/ui/mission/QGCMissionOther.h \
-    src/ui/mission/QGCMissionNavWaypoint.h \
-    src/ui/mission/QGCMissionDoJump.h \
-    src/ui/mission/QGCMissionConditionDelay.h \
-    src/ui/mission/QGCMissionNavLoiterUnlim.h \
-    src/ui/mission/QGCMissionNavLoiterTurns.h \
-    src/ui/mission/QGCMissionNavLoiterTime.h \
-    src/ui/mission/QGCMissionNavReturnToLaunch.h \
-    src/ui/mission/QGCMissionNavLand.h \
-    src/ui/mission/QGCMissionNavTakeoff.h \
-    src/ui/mission/QGCMissionNavSweep.h \
-    src/ui/mission/QGCMissionDoStartSearch.h \
-    src/ui/mission/QGCMissionDoFinishSearch.h \
-    src/ui/QGCVehicleConfig.h \
-    src/ui/QGCPX4VehicleConfig.h \
-    src/comm/QGCHilLink.h \
-    src/ui/QGCHilConfiguration.h \
-    src/ui/QGCHilFlightGearConfiguration.h \
-    src/ui/QGCHilJSBSimConfiguration.h \
-    src/ui/QGCHilXPlaneConfiguration.h \
-    src/ui/designer/QGCComboBox.h \
-    src/ui/designer/QGCTextLabel.h \
-    src/ui/submainwindow.h \
-    src/ui/dockwidgettitlebareventfilter.h \
-    src/ui/uas/UASQuickView.h \
-    src/ui/uas/UASQuickViewItem.h \
-    src/ui/linechart/ChartPlot.h \
-    src/ui/uas/UASQuickViewItemSelect.h \
-    src/ui/uas/UASQuickViewTextItem.h \
-    src/ui/uas/UASQuickViewGaugeItem.h \
-    src/ui/uas/UASActionsWidget.h \
-    src/ui/designer/QGCRadioChannelDisplay.h \
-    src/ui/QGCTabbedInfoView.h \
-    src/ui/UASRawStatusView.h \
-    src/ui/PrimaryFlightDisplay.h \
-    src/ui/uas/QGCMessageView.h \
-    src/ui/JoystickButton.h \
-    src/ui/JoystickAxis.h \
-    src/ui/configuration/ApmHardwareConfig.h \
-    src/ui/configuration/ApmSoftwareConfig.h \
-    src/ui/configuration/FrameTypeConfig.h \
-    src/ui/configuration/CompassConfig.h \
-    src/ui/configuration/AccelCalibrationConfig.h \
-    src/ui/configuration/RadioCalibrationConfig.h \
-    src/ui/configuration/FlightModeConfig.h \
-    src/ui/configuration/Radio3DRConfig.h \
-    src/ui/configuration/BatteryMonitorConfig.h \
-    src/ui/configuration/SonarConfig.h \
-    src/ui/configuration/AirspeedConfig.h \
-    src/ui/configuration/OpticalFlowConfig.h \
-    src/ui/configuration/OsdConfig.h \
-    src/ui/configuration/AntennaTrackerConfig.h \
-    src/ui/configuration/CameraGimbalConfig.h \
-    src/ui/configuration/AP2ConfigWidget.h \
-    src/ui/configuration/BasicPidConfig.h \
-    src/ui/configuration/StandardParamConfig.h \
-    src/ui/configuration/GeoFenceConfig.h \
-    src/ui/configuration/FailSafeConfig.h \
-    src/ui/configuration/AdvancedParamConfig.h \
-    src/ui/configuration/ArduCopterPidConfig.h \
-    src/ui/apmtoolbar.h \
-    src/ui/configuration/ApmPlaneLevel.h \
-    src/ui/configuration/ParamWidget.h \
-    src/ui/configuration/ArduPlanePidConfig.h \
-    src/ui/configuration/AdvParameterList.h \
-    src/ui/configuration/ArduRoverPidConfig.h \
-    src/ui/QGCConfigView.h \
-    src/ui/main/QGCViewModeSelection.h \
-    src/ui/main/QGCWelcomeMainWindow.h \
-    src/ui/configuration/console.h \
-    src/ui/configuration/SerialSettingsDialog.h \
-    src/ui/configuration/terminalconsole.h \
-    src/ui/configuration/ApmHighlighter.h \
-    src/ui/configuration/ApmFirmwareConfig.h \
-    src/uas/UASParameterDataModel.h \
-    src/uas/UASParameterCommsMgr.h \
-    src/ui/QGCPendingParamWidget.h \
-    src/ui/px4_configuration/QGCPX4AirframeConfig.h \
-    src/ui/QGCBaseParamWidget.h \
-    src/ui/px4_configuration/QGCPX4MulticopterConfig.h \
-    src/ui/px4_configuration/QGCPX4SensorCalibration.h \
-    src/ui/dockwidgeteventfilter.h
+    src/ui/map3D/gpl.h \
+    src/ui/ualberta/UAlbertaControlWidget.h \
+    src/uas/UAlbertaMAV.h \
+    src/ui/UDenverAutopilotRemote.h
 
 # Google Earth is only supported on Mac OS and Windows with Visual Studio Compiler
-macx|macx-g++|macx-g++42|win32-msvc2008|win32-msvc2010|win32-msvc2012::HEADERS += src/ui/map3D/QGCGoogleEarthView.h
-contains(DEPENDENCIES_PRESENT, osg) {
+macx|macx-g++|macx-g++42|win32-msvc2008|win32-msvc2010::HEADERS += src/ui/map3D/QGCGoogleEarthView.h
+contains(DEPENDENCIES_PRESENT, osg) { 
     message("Including headers for OpenSceneGraph")
-
+    
     # Enable only if OpenSceneGraph is available
-    HEADERS += src/ui/map3D/gpl.h \
-        src/ui/map3D/CameraParams.h \
-        src/ui/map3D/ViewParamWidget.h \
-        src/ui/map3D/SystemContainer.h \
-        src/ui/map3D/SystemViewParams.h \
-        src/ui/map3D/GlobalViewParams.h \
-        src/ui/map3D/SystemGroupNode.h \
-        src/ui/map3D/Q3DWidget.h \
+    HEADERS += src/ui/map3D/Q3DWidget.h \
         src/ui/map3D/GCManipulator.h \
         src/ui/map3D/ImageWindowGeode.h \
-        src/ui/map3D/PixhawkCheetahNode.h \
+        src/ui/map3D/PixhawkCheetahGeode.h \
         src/ui/map3D/Pixhawk3DWidget.h \
         src/ui/map3D/Q3DWidgetFactory.h \
         src/ui/map3D/WebImageCache.h \
@@ -534,21 +390,18 @@ contains(DEPENDENCIES_PRESENT, osg) {
         src/ui/map3D/Texture.h \
         src/ui/map3D/Imagery.h \
         src/ui/map3D/HUDScaleGeode.h \
-        src/ui/map3D/WaypointGroupNode.h \
-        src/ui/map3D/TerrainParamDialog.h \
-        src/ui/map3D/ImageryParamDialog.h
+        src/ui/map3D/WaypointGroupNode.h
 }
 contains(DEPENDENCIES_PRESENT, protobuf):contains(MAVLINK_CONF, pixhawk) {
     message("Including headers for Protocol Buffers")
 
     # Enable only if protobuf is available
-    HEADERS += libs/mavlink/include/mavlink/v1.0/pixhawk/pixhawk.pb.h \
-        src/ui/map3D/ObstacleGroupNode.h \
-        src/ui/map3D/GLOverlayGeode.h
+    HEADERS += ../mavlink/include/pixhawk/pixhawk.pb.h \
+               src/ui/map3D/ObstacleGroupNode.h
 }
-contains(DEPENDENCIES_PRESENT, libfreenect) {
+contains(DEPENDENCIES_PRESENT, libfreenect) { 
     message("Including headers for libfreenect")
-
+    
     # Enable only if libfreenect is available
     HEADERS += src/input/Freenect.h
 }
@@ -557,11 +410,10 @@ SOURCES += src/main.cc \
     src/uas/UASManager.cc \
     src/uas/UAS.cc \
     src/comm/LinkManager.cc \
+    src/comm/LinkInterface.cpp \
     src/comm/SerialLink.cc \
     src/comm/MAVLinkProtocol.cc \
     src/comm/QGCFlightGearLink.cc \
-    src/comm/QGCJSBSimLink.cc \
-    src/comm/QGCXPlaneLink.cc \
     src/ui/CommConfigurationWindow.cc \
     src/ui/SerialConfigurationWindow.cc \
     src/ui/MainWindow.cc \
@@ -633,6 +485,8 @@ SOURCES += src/main.cc \
     src/ui/QGCUDPLinkConfiguration.cc \
     src/ui/QGCSettingsWidget.cc \
     src/ui/uas/UASControlParameters.cpp \
+    src/ui/mission/QGCMissionDoWidget.cc \
+    src/ui/mission/QGCMissionConditionWidget.cc \
     src/uas/QGCUASParamManager.cc \
     src/ui/map/QGCMapWidget.cc \
     src/ui/map/MAV2DIcon.cc \
@@ -640,117 +494,33 @@ SOURCES += src/main.cc \
     src/ui/map/QGCMapTool.cc \
     src/ui/map/QGCMapToolBar.cc \
     src/ui/QGCToolBar.cc \
-    src/ui/QGCStatusBar.cc \
     src/ui/QGCMAVLinkInspector.cc \
     src/ui/MAVLinkDecoder.cc \
     src/ui/WaypointViewOnlyView.cc \
     src/ui/WaypointEditableView.cc \
+    src/ui/UnconnectedUASInfoWidget.cc \
     src/ui/QGCRGBDView.cc \
     src/ui/mavlink/QGCMAVLinkMessageSender.cc \
     src/ui/firmwareupdate/QGCFirmwareUpdateWidget.cc \
     src/ui/QGCPluginHost.cc \
     src/ui/firmwareupdate/QGCPX4FirmwareUpdate.cc \
-    src/ui/mission/QGCMissionOther.cc \
-    src/ui/mission/QGCMissionNavWaypoint.cc \
-    src/ui/mission/QGCMissionDoJump.cc \
-    src/ui/mission/QGCMissionConditionDelay.cc \
-    src/ui/mission/QGCMissionNavLoiterUnlim.cc \
-    src/ui/mission/QGCMissionNavLoiterTurns.cc \
-    src/ui/mission/QGCMissionNavLoiterTime.cc \
-    src/ui/mission/QGCMissionNavReturnToLaunch.cc \
-    src/ui/mission/QGCMissionNavLand.cc \
-    src/ui/mission/QGCMissionNavTakeoff.cc \
-    src/ui/mission/QGCMissionNavSweep.cc \
-    src/ui/mission/QGCMissionDoStartSearch.cc \
-    src/ui/mission/QGCMissionDoFinishSearch.cc \
-    src/ui/QGCVehicleConfig.cc \
-    src/ui/QGCPX4VehicleConfig.cc \
-    src/ui/QGCHilConfiguration.cc \
-    src/ui/QGCHilFlightGearConfiguration.cc \
-    src/ui/QGCHilJSBSimConfiguration.cc \
-    src/ui/QGCHilXPlaneConfiguration.cc \
-    src/ui/designer/QGCComboBox.cc \
-    src/ui/designer/QGCTextLabel.cc \
-    src/ui/submainwindow.cpp \
-    src/ui/dockwidgettitlebareventfilter.cpp \
-    src/ui/uas/UASQuickViewItem.cc \
-    src/ui/uas/UASQuickView.cc \
-    src/ui/linechart/ChartPlot.cc \
-    src/ui/uas/UASQuickViewTextItem.cc \
-    src/ui/uas/UASQuickViewGaugeItem.cc \
-    src/ui/uas/UASQuickViewItemSelect.cc \
-    src/ui/uas/UASActionsWidget.cpp \
-    src/ui/designer/QGCRadioChannelDisplay.cpp \
-    src/ui/QGCTabbedInfoView.cpp \
-    src/ui/UASRawStatusView.cpp \
-    src/ui/PrimaryFlightDisplay.cc \
-    src/ui/JoystickButton.cc \
-    src/ui/JoystickAxis.cc \
-    src/ui/uas/QGCMessageView.cc \
-    src/ui/configuration/ApmHardwareConfig.cc \
-    src/ui/configuration/ApmSoftwareConfig.cc \
-    src/ui/configuration/FrameTypeConfig.cc \
-    src/ui/configuration/CompassConfig.cc \
-    src/ui/configuration/AccelCalibrationConfig.cc \
-    src/ui/configuration/RadioCalibrationConfig.cc \
-    src/ui/configuration/FlightModeConfig.cc \
-    src/ui/configuration/Radio3DRConfig.cc \
-    src/ui/configuration/BatteryMonitorConfig.cc \
-    src/ui/configuration/SonarConfig.cc \
-    src/ui/configuration/AirspeedConfig.cc \
-    src/ui/configuration/OpticalFlowConfig.cc \
-    src/ui/configuration/OsdConfig.cc \
-    src/ui/configuration/AntennaTrackerConfig.cc \
-    src/ui/configuration/CameraGimbalConfig.cc \
-    src/ui/configuration/AP2ConfigWidget.cc \
-    src/ui/configuration/BasicPidConfig.cc \
-    src/ui/configuration/StandardParamConfig.cc \
-    src/ui/configuration/GeoFenceConfig.cc \
-    src/ui/configuration/FailSafeConfig.cc \
-    src/ui/configuration/AdvancedParamConfig.cc \
-    src/ui/configuration/ArduCopterPidConfig.cc \
-    src/ui/apmtoolbar.cpp \
-    src/ui/configuration/ApmPlaneLevel.cc \
-    src/ui/configuration/ParamWidget.cc \
-    src/ui/configuration/ArduPlanePidConfig.cc \
-    src/ui/configuration/AdvParameterList.cc \
-    src/ui/configuration/ArduRoverPidConfig.cc \
-    src/ui/QGCConfigView.cc \
-    src/ui/main/QGCViewModeSelection.cc \
-    src/ui/main/QGCWelcomeMainWindow.cc \
-    src/ui/configuration/terminalconsole.cpp \
-    src/ui/configuration/console.cpp \
-    src/ui/configuration/SerialSettingsDialog.cc \
-    src/ui/configuration/ApmHighlighter.cc \
-    src/ui/configuration/ApmFirmwareConfig.cc \
-    src/uas/UASParameterDataModel.cc \
-    src/uas/UASParameterCommsMgr.cc \
-    src/ui/QGCPendingParamWidget.cc \
-    src/ui/px4_configuration/QGCPX4AirframeConfig.cc \
-    src/ui/QGCBaseParamWidget.cc \
-    src/ui/px4_configuration/QGCPX4MulticopterConfig.cc \
-    src/ui/px4_configuration/QGCPX4SensorCalibration.cc \
-    src/ui/dockwidgeteventfilter.cpp
+    src/ui/map3D/gpl.cc \
+    src/ui/ualberta/UAlbertaControlWidget.cc \
+    src/uas/UAlbertaMAV.cc \
+    src/ui/UDenverAutopilotRemote.cpp
 
 # Enable Google Earth only on Mac OS and Windows with Visual Studio compiler
-macx|macx-g++|macx-g++42|win32-msvc2008|win32-msvc2010|win32-msvc2012::SOURCES += src/ui/map3D/QGCGoogleEarthView.cc
+macx|macx-g++|macx-g++42|win32-msvc2008|win32-msvc2010::SOURCES += src/ui/map3D/QGCGoogleEarthView.cc
 
 # Enable OSG only if it has been found
-contains(DEPENDENCIES_PRESENT, osg) {
+contains(DEPENDENCIES_PRESENT, osg) { 
     message("Including sources for OpenSceneGraph")
-
+    
     # Enable only if OpenSceneGraph is available
-    SOURCES += src/ui/map3D/gpl.cc \
-        src/ui/map3D/CameraParams.cc \
-        src/ui/map3D/ViewParamWidget.cc \
-        src/ui/map3D/SystemContainer.cc \
-        src/ui/map3D/SystemViewParams.cc \
-        src/ui/map3D/GlobalViewParams.cc \
-        src/ui/map3D/SystemGroupNode.cc \
-        src/ui/map3D/Q3DWidget.cc \
+    SOURCES += src/ui/map3D/Q3DWidget.cc \
         src/ui/map3D/ImageWindowGeode.cc \
         src/ui/map3D/GCManipulator.cc \
-        src/ui/map3D/PixhawkCheetahNode.cc \
+        src/ui/map3D/PixhawkCheetahGeode.cc \
         src/ui/map3D/Pixhawk3DWidget.cc \
         src/ui/map3D/Q3DWidgetFactory.cc \
         src/ui/map3D/WebImageCache.cc \
@@ -759,28 +529,24 @@ contains(DEPENDENCIES_PRESENT, osg) {
         src/ui/map3D/Texture.cc \
         src/ui/map3D/Imagery.cc \
         src/ui/map3D/HUDScaleGeode.cc \
-        src/ui/map3D/WaypointGroupNode.cc \
-        src/ui/map3D/TerrainParamDialog.cc \
-        src/ui/map3D/ImageryParamDialog.cc
-
-    contains(DEPENDENCIES_PRESENT, osgearth) {
+        src/ui/map3D/WaypointGroupNode.cc
+    contains(DEPENDENCIES_PRESENT, osgearth) { 
         message("Including sources for osgEarth")
-
+        
         # Enable only if OpenSceneGraph is available
-        SOURCES +=
+        SOURCES += src/ui/map3D/QMap3D.cc
     }
 }
 contains(DEPENDENCIES_PRESENT, protobuf):contains(MAVLINK_CONF, pixhawk) {
     message("Including sources for Protocol Buffers")
 
     # Enable only if protobuf is available
-    SOURCES += libs/mavlink/share/mavlink/src/v1.0/pixhawk/pixhawk.pb.cc \
-        src/ui/map3D/ObstacleGroupNode.cc \
-        src/ui/map3D/GLOverlayGeode.cc
+    SOURCES += ../mavlink/src/pixhawk/pixhawk.pb.cc \
+               src/ui/map3D/ObstacleGroupNode.cc
 }
-contains(DEPENDENCIES_PRESENT, libfreenect) {
+contains(DEPENDENCIES_PRESENT, libfreenect) { 
     message("Including sources for libfreenect")
-
+    
     # Enable only if libfreenect is available
     SOURCES += src/input/Freenect.cc
 }
@@ -789,7 +555,7 @@ contains(DEPENDENCIES_PRESENT, libfreenect) {
 RESOURCES += qgroundcontrol.qrc
 
 # Include RT-LAB Library
-win32:exists(src/lib/opalrt/OpalApi.h):exists(C:/OPAL-RT/RT-LAB7.2.4/Common/bin) {
+win32:exists(src/lib/opalrt/OpalApi.h):exists(C:/OPAL-RT/RT-LAB7.2.4/Common/bin) { 
     message("Building support for Opal-RT")
     LIBS += -LC:/OPAL-RT/RT-LAB7.2.4/Common/bin \
         -lOpalApi
@@ -814,84 +580,19 @@ TRANSLATIONS += es-MX.ts \
 
 # xbee support
 # libxbee only supported by linux and windows systems
-win32-msvc2008|win32-msvc2010|win32-msvc2012|linux {
+win32-msvc2008|win32-msvc2010|linux{
     HEADERS += src/comm/XbeeLinkInterface.h \
-        src/comm/XbeeLink.h \
-        src/comm/HexSpinBox.h \
-        src/ui/XbeeConfigurationWindow.h \
-        src/comm/CallConv.h
+	src/comm/XbeeLink.h \
+	src/comm/HexSpinBox.h \
+	src/ui/XbeeConfigurationWindow.h \
+	src/comm/CallConv.h
     SOURCES += src/comm/XbeeLink.cpp \
-        src/comm/HexSpinBox.cpp \
-        src/ui/XbeeConfigurationWindow.cpp
+	src/comm/HexSpinBox.cpp \
+	src/ui/XbeeConfigurationWindow.cpp
     DEFINES += XBEELINK
-    INCLUDEPATH += libs/thirdParty/libxbee
-# TO DO: build library when it does not exist already
-    LIBS += -llibs/thirdParty/libxbee/lib/libxbee
+    INCLUDEPATH += thirdParty/libxbee
+# TO DO: build library when it does not exists already
+    LIBS += -LthirdParty/libxbee/lib \
+	-llibxbee
+
 }
-
-###################################################################
-#### --- 3DConnexion 3d Mice support (e.g. spacenavigator) --- ####
-###################################################################
-
-# xdrvlib only supported by linux (theoretical all X11) systems
-# You have to install the official 3DxWare driver for linux to use 3D mouse support on linux systems!
-linux-g++|linux-g++-64{
-    exists(/usr/local/lib/libxdrvlib.so){
-        message("Including support for Magellan 3DxWare for linux system.")
-        SOURCES  += src/input/Mouse6dofInput.cpp
-        HEADERS  += src/input/Mouse6dofInput.h
-        LIBS += -L/usr/local/lib/ -lxdrvlib
-        INCLUDEPATH *= /usr/local/include
-        DEFINES += MOUSE_ENABLED_LINUX \
-                    ParameterCheck                      # Hack: Has to be defined for magellan usage
-    }
-}
-
-# Support for Windows systems
-# You have to install the official 3DxWare driver for Windows to use the 3D mouse support on Windows systems!
-win32-msvc2008|win32-msvc2010|win32-msvc2012 {
-    message("Including support for 3DxWare for Windows system.")
-    SOURCES  += libs/thirdParty/3DMouse/win/MouseParameters.cpp \
-                libs/thirdParty/3DMouse/win/Mouse3DInput.cpp \
-                src/input/Mouse6dofInput.cpp
-    HEADERS  += libs/thirdParty/3DMouse/win/I3dMouseParams.h \
-                libs/thirdParty/3DMouse/win/MouseParameters.h \
-                libs/thirdParty/3DMouse/win/Mouse3DInput.h \
-                src/input/Mouse6dofInput.h
-    INCLUDEPATH += libs/thirdParty/3DMouse/win
-    DEFINES += MOUSE_ENABLED_WIN
-}
-
-unix:!macx:!symbian: LIBS += -losg
-
-OTHER_FILES += \
-    dongfang_notes.txt \
-    src/ui/dongfang-scrapyard.txt \
-    qml/components/DigitalDisplay.qml \
-    qml/components/StatusDisplay.qml
-
-OTHER_FILES += \
-    qml/ApmToolBar.qml \
-    qml/components/Button.qml \
-    qml/components/TextButton.qml \
-    qml/resources/qgroundcontrol/toolbar/connect.png \
-    qml/resources/qgroundcontrol/toolbar/flightplanner.png \
-    qml/resources/qgroundcontrol/toolbar/helpwizard.png \
-    qml/resources/qgroundcontrol/toolbar/softwareconfig.png \
-    qml/resources/qgroundcontrol/toolbar/terminal.png \
-    qml/resources/qgroundcontrol/toolbar/simulation.png \
-    qml/resources/qgroundcontrol/toolbar/hardwareconfig.png \
-    qml/resources/qgroundcontrol/toolbar/flightdata.png \
-    qml/resources/qgroundcontrol/toolbar/disconnect.png \
-    qml/resources/qgroundcontrol/toolbar/donate.png \
-
-
-#qmlcomponents.path    += $${DESTDIR}$${TARGET}/components
-#qmlcomponents.files   += ./components/Button.qml
-
-#sources.files       += ApmToolBar.qml
-#sources.path        += $$DESTDIR/qml
-#target.path         += qgroundcontrol
-#INSTALLS            += sources target
-
-message( BASEDIR $$BASEDIR DESTDIR $$DESTDIR TARGET $$TARGET TARGETDIR $$TARGETDIR)

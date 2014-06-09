@@ -36,10 +36,8 @@ This file is part of the QGROUNDCONTROL project
 #include <osg/ShapeDrawable>
 
 #include "Imagery.h"
-#include "UASManager.h"
 
-WaypointGroupNode::WaypointGroupNode(const QColor& color)
- : mColor(color)
+WaypointGroupNode::WaypointGroupNode()
 {
 
 }
@@ -51,7 +49,7 @@ WaypointGroupNode::init(void)
 }
 
 void
-WaypointGroupNode::update(UASInterface* uas, MAV_FRAME frame)
+WaypointGroupNode::update(MAV_FRAME frame, UASInterface *uas)
 {
     if (!uas)
     {
@@ -71,16 +69,6 @@ WaypointGroupNode::update(UASInterface* uas, MAV_FRAME frame)
         Imagery::LLtoUTM(latitude, longitude, robotX, robotY, utmZone);
         robotZ = -altitude;
     }
-    else if (frame == MAV_FRAME_GLOBAL_RELATIVE_ALT)
-    {
-        double latitude = uas->getLatitude();
-        double longitude = uas->getLongitude();
-        double altitude = uas->getAltitude() + UASManager::instance()->getHomeAltitude();
-
-        QString utmZone;
-        Imagery::LLtoUTM(latitude, longitude, robotX, robotY, utmZone);
-        robotZ = -altitude;
-    }
     else if (frame == MAV_FRAME_LOCAL_NED)
     {
         robotX = uas->getLocalX();
@@ -93,7 +81,7 @@ WaypointGroupNode::update(UASInterface* uas, MAV_FRAME frame)
         removeChild(0, getNumChildren());
     }
 
-    const QList<Waypoint *>& list = uas->getWaypointManager()->getWaypointEditableList();
+    const QVector<Waypoint *>& list = uas->getWaypointManager()->getWaypointEditableList();
 
     for (int i = 0; i < list.size(); i++)
     {
@@ -117,12 +105,11 @@ WaypointGroupNode::update(UASInterface* uas, MAV_FRAME frame)
 
         if (wp->getCurrent())
         {
-            sd->setColor(osg::Vec4(1.0f, 0.8f, 0.0f, 1.0f));
+            sd->setColor(osg::Vec4(1.0f, 0.3f, 0.3f, 0.5f));
         }
         else
         {
-            sd->setColor(osg::Vec4(mColor.redF(), mColor.greenF(),
-                                   mColor.blueF(), 0.5f));
+            sd->setColor(osg::Vec4(0.0f, 1.0f, 0.0f, 0.5f));
         }
 
         osg::ref_ptr<osg::Geode> geode = new osg::Geode;
@@ -146,8 +133,14 @@ WaypointGroupNode::update(UASInterface* uas, MAV_FRAME frame)
         sd->setShape(cylinder);
         sd->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
 
-        sd->setColor(osg::Vec4(mColor.redF(), mColor.greenF(),
-                               mColor.blueF(), 0.5f));
+        if (wp->getCurrent())
+        {
+            sd->setColor(osg::Vec4(1.0f, 0.3f, 0.3f, 0.5f));
+        }
+        else
+        {
+            sd->setColor(osg::Vec4(0.0f, 1.0f, 0.0f, 0.5f));
+        }
 
         geode = new osg::Geode;
         geode->addDrawable(sd);
@@ -171,8 +164,7 @@ WaypointGroupNode::update(UASInterface* uas, MAV_FRAME frame)
             geometry->setVertexArray(vertices);
 
             osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
-            colors->push_back(osg::Vec4(mColor.redF(), mColor.greenF(),
-                                        mColor.blueF(), 0.5f));
+            colors->push_back(osg::Vec4(0.0f, 1.0f, 0.0f, 0.5f));
             geometry->setColorArray(colors);
             geometry->setColorBinding(osg::Geometry::BIND_OVERALL);
 
