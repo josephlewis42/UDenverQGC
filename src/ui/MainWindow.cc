@@ -497,7 +497,6 @@ void MainWindow::buildCommonWidgets()
         addTool(video2DockWidget, tr("Video Stream 2"), Qt::LeftDockWidgetArea);
     }
 
-#ifdef QGC_USE_UALBERTA_MESSAGES
     if (!ualbertaControlWidget)
     {
     	qDebug() << "Load UAlberta Control Widget";
@@ -507,7 +506,6 @@ void MainWindow::buildCommonWidgets()
     	ualbertaControlWidget->setObjectName("UALBERTA_AUTOPILOT_CONTROL_WIDGET");
         addTool(ualbertaControlWidget, tr("UDenver Autopilot Control"), Qt::RightDockWidgetArea);
     }
-#endif
 
     if(!udenverRemoteWidget)
     {

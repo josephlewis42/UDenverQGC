@@ -247,7 +247,6 @@ void UAS::receiveMessage(LinkInterface* link, mavlink_message_t message)
 
         if (componentMulti[message.msgid] == true) multiComponentSourceDetected = true;
 
-
         switch (message.msgid)
         {
         case MAVLINK_MSG_ID_HEARTBEAT:

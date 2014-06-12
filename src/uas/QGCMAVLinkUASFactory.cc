@@ -88,7 +88,6 @@ UASInterface* QGCMAVLinkUASFactory::createUAS(MAVLinkProtocol* mavlink, LinkInte
 			break;
 		}
 #endif
-#ifdef QGC_USE_UALBERTA_MESSAGES
 	case MAV_AUTOPILOT_UALBERTA:
 	{
 		qDebug() << "Creating UAlberta MAV";
@@ -98,7 +97,6 @@ UASInterface* QGCMAVLinkUASFactory::createUAS(MAVLinkProtocol* mavlink, LinkInte
 		uas = mav;
 		break;
 	}
-#endif
     default:
     {
         UAS* mav = new UAS(mavlink, sysid);

@@ -33,12 +33,15 @@ UAlbertaMAV::UAlbertaMAV(MAVLinkProtocol* protocol, int id)
 void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
 {
 
-#if defined(QGC_USE_UALBERTA_MESSAGES)
-
 	if (message.sysid == uasId)
 	{
 		switch(message.msgid)
 		{
+        case MAVLINK_MSG_ID_UALBERTA_ALTIMITER:
+        {
+            //do stuff with this value
+            break;
+        }
 		case MAVLINK_MSG_ID_UALBERTA_SYS_STATUS:
 		{
 //			qDebug() << "Got UALBERTA sys status";
@@ -328,9 +331,6 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
 			break;
 		}
 	}
-#else
-	UAS::receiveMessage(link, message);
-#endif
 }
 
 void UAlbertaMAV::setOrigin()

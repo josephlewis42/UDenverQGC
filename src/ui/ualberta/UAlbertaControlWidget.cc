@@ -79,7 +79,6 @@ UAlbertaControlWidget::~UAlbertaControlWidget()
 void UAlbertaControlWidget::setServoSource()
 {
 
-#ifdef QGC_USE_UALBERTA_MESSAGES
 	UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(this->uas));
 	if (mav)
 	{
@@ -88,12 +87,10 @@ void UAlbertaControlWidget::setServoSource()
 		mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_SET_SERVO_SOURCE, ui.servo_source_box->currentIndex());
 		mav->sendMessage(msg);
 	}
-#endif
 }
 
 void UAlbertaControlWidget::setControlMode()
 {
-#ifdef QGC_USE_UALBERTA_MESSAGES
 
 	UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 	if (mav)
@@ -103,7 +100,6 @@ void UAlbertaControlWidget::setControlMode()
 		mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_SET_CONTROL_MODE, ui.control_mode_box->currentIndex());
 		mav->sendMessage(msg);
 	}
-#endif
 }
 
 void UAlbertaControlWidget::setOrigin()
@@ -116,7 +112,6 @@ void UAlbertaControlWidget::setOrigin()
 
 	if (msgbox.exec() == QMessageBox::Yes)
 	{
-#ifdef QGC_USE_UALBERTA_MESSAGES
 		UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 		if (mav)
 		{
@@ -126,7 +121,6 @@ void UAlbertaControlWidget::setOrigin()
 			mav->sendMessage(msg);
 		}
 
-#endif
 	}
 }
 
@@ -139,7 +133,6 @@ void UAlbertaControlWidget::resetFilter()
 
 	if (msgbox.exec() == QMessageBox::Yes)
 	{
-#ifdef QGC_USE_UALBERTA_MESSAGES
 		UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 		if (mav)
 		{
@@ -148,14 +141,12 @@ void UAlbertaControlWidget::resetFilter()
 			mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_RESET_FILTER, 0);
 			mav->sendMessage(msg);
 		}
-#endif
 	}
 }
 
 void UAlbertaControlWidget::setAttitudeSource()
 {
 	qDebug() << "Set Attitude Source";
-#ifdef QGC_USE_UALBERTA_MESSAGES
 	UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 	if (mav)
 	{
@@ -163,13 +154,11 @@ void UAlbertaControlWidget::setAttitudeSource()
 		mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_SET_ATTITUDE_SOURCE, ui.attitude_source_box->currentIndex());
 		mav->sendMessage(msg);
 	}
-#endif
 }
 
 void UAlbertaControlWidget::setReferencePosition()
 {
 	qDebug() << "Set reference position";
-#ifdef QGC_USE_UALBERTA_MESSAGES
 	UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 	if (mav)
 	{
@@ -177,7 +166,6 @@ void UAlbertaControlWidget::setReferencePosition()
 		mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_SET_REF_POS, 0);
 		mav->sendMessage(msg);
 	}
-#endif
 }
 
 void UAlbertaControlWidget::shutdown()
@@ -190,7 +178,6 @@ void UAlbertaControlWidget::shutdown()
 	if (msgbox.exec() == QMessageBox::Yes)
 	{
 		qDebug() << "Shutdown Autopilot";
-#ifdef QGC_USE_UALBERTA_MESSAGES
 		UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 		if (mav)
 		{
@@ -198,7 +185,6 @@ void UAlbertaControlWidget::shutdown()
 			mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_SHUTDOWN, 0);
 			mav->sendMessage(msg);
 		}
-#endif
 	}
 	else
 		qDebug() << "Don't Shutdown";
@@ -206,7 +192,6 @@ void UAlbertaControlWidget::shutdown()
 
 void UAlbertaControlWidget::initAttitude()
 {
-#ifdef QGC_USE_UALBERTA_MESSAGES
 	UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
 	if (mav)
 	{
@@ -214,16 +199,15 @@ void UAlbertaControlWidget::initAttitude()
 		mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_INIT_ATTITUDE, 0);
 		mav->sendMessage(msg);
 	}
-#endif
 }
 
 void UAlbertaControlWidget::setUAS(UASInterface* uas)
 {
 	if (uas != 0)
-	{
+    {
 		UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(this->uas));
 		if (mav)
-		{
+        {
 			disconnect(mav, SIGNAL(servo_source(QString)), ui.servo_source_label, SLOT(setText(QString)));
 			disconnect(mav, SIGNAL(controlMode(QString)), ui.control_mode_label, SLOT(setText(QString)));
 			disconnect(mav, SIGNAL(pilotMode(QString)), ui.pilot_mode_label, SLOT(setText(QString)));

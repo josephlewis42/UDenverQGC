@@ -41,9 +41,7 @@ This file is part of the QGROUNDCONTROL project
 #include <slugs.h>
 #endif
 
-#ifdef QGC_USE_UALBERTA_MESSAGES
 #include <ualberta.h>
-#endif
 
 #ifdef QGC_USE_ARDUPILOTMEGA_MESSAGES
 #include <ardupilotmega.h>

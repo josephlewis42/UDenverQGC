@@ -224,9 +224,9 @@ void UDPLink::readBytes()
 //        // Echo data for debugging purposes
 //        std::cerr << __FILE__ << __LINE__ << "Received datagram:" << std::endl;
 //        int i;
-//        for (i=0; i<s; i++)
+//        for (i=0; i<datagram.size(); i++)
 //        {
-//            unsigned int v=data[i];
+//            unsigned int v=datagram.data()[i];
 //            fprintf(stderr,"%02x ", v);
 //        }
 //        std::cerr << std::endl;
