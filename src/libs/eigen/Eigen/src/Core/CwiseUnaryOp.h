@@ -4,27 +4,14 @@
 // Copyright (C) 2008-2010 Gael Guennebaud <gael.guennebaud@inria.fr>
 // Copyright (C) 2006-2008 Benoit Jacob <jacob.benoit.1@gmail.com>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef EIGEN_CWISE_UNARY_OP_H
 #define EIGEN_CWISE_UNARY_OP_H
+
+namespace Eigen { 
 
 /** \class CwiseUnaryOp
   * \ingroup Core_Module
@@ -77,25 +64,31 @@ class CwiseUnaryOp : internal::no_assignment_operator,
     typedef typename CwiseUnaryOpImpl<UnaryOp, XprType,typename internal::traits<XprType>::StorageKind>::Base Base;
     EIGEN_GENERIC_PUBLIC_INTERFACE(CwiseUnaryOp)
 
+    EIGEN_DEVICE_FUNC
     inline CwiseUnaryOp(const XprType& xpr, const UnaryOp& func = UnaryOp())
       : m_xpr(xpr), m_functor(func) {}
 
+    EIGEN_DEVICE_FUNC
     EIGEN_STRONG_INLINE Index rows() const { return m_xpr.rows(); }
+    EIGEN_DEVICE_FUNC
     EIGEN_STRONG_INLINE Index cols() const { return m_xpr.cols(); }
 
     /** \returns the functor representing the unary operation */
+    EIGEN_DEVICE_FUNC
     const UnaryOp& functor() const { return m_functor; }
 
     /** \returns the nested expression */
+    EIGEN_DEVICE_FUNC
     const typename internal::remove_all<typename XprType::Nested>::type&
     nestedExpression() const { return m_xpr; }
 
     /** \returns the nested expression */
+    EIGEN_DEVICE_FUNC
     typename internal::remove_all<typename XprType::Nested>::type&
     nestedExpression() { return m_xpr.const_cast_derived(); }
 
   protected:
-    const typename XprType::Nested m_xpr;
+    typename XprType::Nested m_xpr;
     const UnaryOp m_functor;
 };
 
@@ -111,27 +104,32 @@ class CwiseUnaryOpImpl<UnaryOp,XprType,Dense>
     typedef typename internal::dense_xpr_base<CwiseUnaryOp<UnaryOp, XprType> >::type Base;
     EIGEN_DENSE_PUBLIC_INTERFACE(Derived)
 
-    EIGEN_STRONG_INLINE const Scalar coeff(Index row, Index col) const
+    EIGEN_DEVICE_FUNC
+    EIGEN_STRONG_INLINE const Scalar coeff(Index rowId, Index colId) const
     {
-      return derived().functor()(derived().nestedExpression().coeff(row, col));
+      return derived().functor()(derived().nestedExpression().coeff(rowId, colId));
     }
 
     template<int LoadMode>
-    EIGEN_STRONG_INLINE PacketScalar packet(Index row, Index col) const
+    EIGEN_STRONG_INLINE PacketScalar packet(Index rowId, Index colId) const
     {
-      return derived().functor().packetOp(derived().nestedExpression().template packet<LoadMode>(row, col));
+      return derived().functor().packetOp(derived().nestedExpression().template packet<LoadMode>(rowId, colId));
     }
 
+    EIGEN_DEVICE_FUNC
     EIGEN_STRONG_INLINE const Scalar coeff(Index index) const
     {
       return derived().functor()(derived().nestedExpression().coeff(index));
     }
 
     template<int LoadMode>
+    EIGEN_DEVICE_FUNC
     EIGEN_STRONG_INLINE PacketScalar packet(Index index) const
     {
       return derived().functor().packetOp(derived().nestedExpression().template packet<LoadMode>(index));
     }
 };
+
+} // end namespace Eigen
 
 #endif // EIGEN_CWISE_UNARY_OP_H

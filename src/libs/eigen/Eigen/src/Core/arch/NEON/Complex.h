@@ -3,32 +3,19 @@
 //
 // Copyright (C) 2010 Gael Guennebaud <gael.guennebaud@inria.fr>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef EIGEN_COMPLEX_NEON_H
 #define EIGEN_COMPLEX_NEON_H
 
+namespace Eigen {
+
 namespace internal {
 
-static uint32x4_t p4ui_CONJ_XOR = { 0x00000000, 0x80000000, 0x00000000, 0x80000000 };
-static uint32x2_t p2ui_CONJ_XOR = { 0x00000000, 0x80000000 };
+static uint32x4_t p4ui_CONJ_XOR = EIGEN_INIT_NEON_PACKET4(0x00000000, 0x80000000, 0x00000000, 0x80000000);
+static uint32x2_t p2ui_CONJ_XOR = EIGEN_INIT_NEON_PACKET2(0x00000000, 0x80000000);
 
 //---------- float ----------
 struct Packet2cf
@@ -41,6 +28,7 @@ struct Packet2cf
 template<> struct packet_traits<std::complex<float> >  : default_packet_traits
 {
   typedef Packet2cf type;
+  typedef Packet2cf half;
   enum {
     Vectorizable = 1,
     AlignedOnScalar = 1,
@@ -59,7 +47,7 @@ template<> struct packet_traits<std::complex<float> >  : default_packet_traits
   };
 };
 
-template<> struct unpacket_traits<Packet2cf> { typedef std::complex<float> type; enum {size=2}; };
+template<> struct unpacket_traits<Packet2cf> { typedef std::complex<float> type; enum {size=2}; typedef Packet2cf half; };
 
 template<> EIGEN_STRONG_INLINE Packet2cf pset1<Packet2cf>(const std::complex<float>&  from)
 {
@@ -81,7 +69,6 @@ template<> EIGEN_STRONG_INLINE Packet2cf pconj(const Packet2cf& a)
 template<> EIGEN_STRONG_INLINE Packet2cf pmul<Packet2cf>(const Packet2cf& a, const Packet2cf& b)
 {
   Packet4f v1, v2;
-  float32x2_t a_lo, a_hi;
 
   // Get the real values of a | a1_re | a1_re | a2_re | a2_re |
   v1 = vcombine_f32(vdup_lane_f32(vget_low_f32(a.v), 0), vdup_lane_f32(vget_high_f32(a.v), 0));
@@ -94,9 +81,7 @@ template<> EIGEN_STRONG_INLINE Packet2cf pmul<Packet2cf>(const Packet2cf& a, con
   // Conjugate v2 
   v2 = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f32(v2), p4ui_CONJ_XOR));
   // Swap real/imag elements in v2.
-  a_lo = vrev64_f32(vget_low_f32(v2));
-  a_hi = vrev64_f32(vget_high_f32(v2));
-  v2 = vcombine_f32(a_lo, a_hi);
+  v2 = vrev64q_f32(v2);
   // Add and return the result
   return Packet2cf(vaddq_f32(v1, v2));
 }
@@ -126,7 +111,23 @@ template<> EIGEN_STRONG_INLINE Packet2cf ploaddup<Packet2cf>(const std::complex<
 template<> EIGEN_STRONG_INLINE void pstore <std::complex<float> >(std::complex<float> *   to, const Packet2cf& from) { EIGEN_DEBUG_ALIGNED_STORE pstore((float*)to, from.v); }
 template<> EIGEN_STRONG_INLINE void pstoreu<std::complex<float> >(std::complex<float> *   to, const Packet2cf& from) { EIGEN_DEBUG_UNALIGNED_STORE pstoreu((float*)to, from.v); }
 
-template<> EIGEN_STRONG_INLINE void prefetch<std::complex<float> >(const std::complex<float> *   addr) { __pld((float *)addr); }
+template<> EIGEN_DEVICE_FUNC inline Packet2cf pgather<std::complex<float>, Packet2cf>(const std::complex<float>* from, int stride)
+{
+  Packet4f res;
+  res = vsetq_lane_f32(std::real(from[0*stride]), res, 0);
+  res = vsetq_lane_f32(std::imag(from[0*stride]), res, 1);
+  res = vsetq_lane_f32(std::real(from[1*stride]), res, 2);
+  res = vsetq_lane_f32(std::imag(from[1*stride]), res, 3);
+  return Packet2cf(res);
+}
+
+template<> EIGEN_DEVICE_FUNC inline void pscatter<std::complex<float>, Packet2cf>(std::complex<float>* to, const Packet2cf& from, int stride)
+{
+  to[stride*0] = std::complex<float>(vgetq_lane_f32(from.v, 0), vgetq_lane_f32(from.v, 1));
+  to[stride*1] = std::complex<float>(vgetq_lane_f32(from.v, 2), vgetq_lane_f32(from.v, 3));
+}
+
+template<> EIGEN_STRONG_INLINE void prefetch<std::complex<float> >(const std::complex<float> *   addr) { EIGEN_ARM_PREFETCH((float *)addr); }
 
 template<> EIGEN_STRONG_INLINE std::complex<float>  pfirst<Packet2cf>(const Packet2cf& a)
 {
@@ -254,17 +255,24 @@ template<> EIGEN_STRONG_INLINE Packet2cf pdiv<Packet2cf>(const Packet2cf& a, con
   // TODO optimize it for AltiVec
   Packet2cf res = conj_helper<Packet2cf,Packet2cf,false,true>().pmul(a,b);
   Packet4f s, rev_s;
-  float32x2_t a_lo, a_hi;
 
   // this computes the norm
   s = vmulq_f32(b.v, b.v);
-  a_lo = vrev64_f32(vget_low_f32(s));
-  a_hi = vrev64_f32(vget_high_f32(s));
-  rev_s = vcombine_f32(a_lo, a_hi);
+  rev_s = vrev64q_f32(s);
 
   return Packet2cf(pdiv(res.v, vaddq_f32(s,rev_s)));
 }
 
+EIGEN_DEVICE_FUNC inline void
+ptranspose(PacketBlock<Packet2cf,2>& kernel) {
+  float32x4_t tmp = vcombine_f32(vget_high_f32(kernel.packet[0].v), vget_high_f32(kernel.packet[1].v));
+  kernel.packet[0].v = vcombine_f32(vget_low_f32(kernel.packet[0].v), vget_low_f32(kernel.packet[1].v));
+  kernel.packet[1].v = tmp;
+}
+
+
 } // end namespace internal
+
+} // end namespace Eigen
 
 #endif // EIGEN_COMPLEX_NEON_H

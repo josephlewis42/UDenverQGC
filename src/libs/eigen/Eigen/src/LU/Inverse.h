@@ -3,27 +3,14 @@
 //
 // Copyright (C) 2008-2010 Benoit Jacob <jacob.benoit.1@gmail.com>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef EIGEN_INVERSE_H
 #define EIGEN_INVERSE_H
+
+namespace Eigen { 
 
 namespace internal {
 
@@ -34,6 +21,7 @@ namespace internal {
 template<typename MatrixType, typename ResultType, int Size = MatrixType::RowsAtCompileTime>
 struct compute_inverse
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(const MatrixType& matrix, ResultType& result)
   {
     result = matrix.partialPivLu().inverse();
@@ -50,6 +38,7 @@ struct compute_inverse_and_det_with_check { /* nothing! general case not support
 template<typename MatrixType, typename ResultType>
 struct compute_inverse<MatrixType, ResultType, 1>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(const MatrixType& matrix, ResultType& result)
   {
     typedef typename MatrixType::Scalar Scalar;
@@ -60,6 +49,7 @@ struct compute_inverse<MatrixType, ResultType, 1>
 template<typename MatrixType, typename ResultType>
 struct compute_inverse_and_det_with_check<MatrixType, ResultType, 1>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(
     const MatrixType& matrix,
     const typename MatrixType::RealScalar& absDeterminantThreshold,
@@ -68,6 +58,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 1>
     bool& invertible
   )
   {
+    using std::abs;
     determinant = matrix.coeff(0,0);
     invertible = abs(determinant) > absDeterminantThreshold;
     if(invertible) result.coeffRef(0,0) = typename ResultType::Scalar(1) / determinant;
@@ -79,6 +70,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 1>
 ****************************/
 
 template<typename MatrixType, typename ResultType>
+EIGEN_DEVICE_FUNC 
 inline void compute_inverse_size2_helper(
     const MatrixType& matrix, const typename ResultType::Scalar& invdet,
     ResultType& result)
@@ -92,6 +84,7 @@ inline void compute_inverse_size2_helper(
 template<typename MatrixType, typename ResultType>
 struct compute_inverse<MatrixType, ResultType, 2>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(const MatrixType& matrix, ResultType& result)
   {
     typedef typename ResultType::Scalar Scalar;
@@ -103,6 +96,7 @@ struct compute_inverse<MatrixType, ResultType, 2>
 template<typename MatrixType, typename ResultType>
 struct compute_inverse_and_det_with_check<MatrixType, ResultType, 2>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(
     const MatrixType& matrix,
     const typename MatrixType::RealScalar& absDeterminantThreshold,
@@ -111,6 +105,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 2>
     bool& invertible
   )
   {
+    using std::abs;
     typedef typename ResultType::Scalar Scalar;
     determinant = matrix.determinant();
     invertible = abs(determinant) > absDeterminantThreshold;
@@ -125,6 +120,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 2>
 ****************************/
 
 template<typename MatrixType, int i, int j>
+EIGEN_DEVICE_FUNC 
 inline typename MatrixType::Scalar cofactor_3x3(const MatrixType& m)
 {
   enum {
@@ -138,6 +134,7 @@ inline typename MatrixType::Scalar cofactor_3x3(const MatrixType& m)
 }
 
 template<typename MatrixType, typename ResultType>
+EIGEN_DEVICE_FUNC
 inline void compute_inverse_size3_helper(
     const MatrixType& matrix,
     const typename ResultType::Scalar& invdet,
@@ -156,6 +153,7 @@ inline void compute_inverse_size3_helper(
 template<typename MatrixType, typename ResultType>
 struct compute_inverse<MatrixType, ResultType, 3>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(const MatrixType& matrix, ResultType& result)
   {
     typedef typename ResultType::Scalar Scalar;
@@ -172,6 +170,7 @@ struct compute_inverse<MatrixType, ResultType, 3>
 template<typename MatrixType, typename ResultType>
 struct compute_inverse_and_det_with_check<MatrixType, ResultType, 3>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(
     const MatrixType& matrix,
     const typename MatrixType::RealScalar& absDeterminantThreshold,
@@ -180,6 +179,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 3>
     bool& invertible
   )
   {
+    using std::abs;
     typedef typename ResultType::Scalar Scalar;
     Matrix<Scalar,3,1> cofactors_col0;
     cofactors_col0.coeffRef(0) =  cofactor_3x3<MatrixType,0,0>(matrix);
@@ -198,6 +198,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 3>
 ****************************/
 
 template<typename Derived>
+EIGEN_DEVICE_FUNC 
 inline const typename Derived::Scalar general_det3_helper
 (const MatrixBase<Derived>& matrix, int i1, int i2, int i3, int j1, int j2, int j3)
 {
@@ -206,6 +207,7 @@ inline const typename Derived::Scalar general_det3_helper
 }
 
 template<typename MatrixType, int i, int j>
+EIGEN_DEVICE_FUNC 
 inline typename MatrixType::Scalar cofactor_4x4(const MatrixType& matrix)
 {
   enum {
@@ -224,6 +226,7 @@ inline typename MatrixType::Scalar cofactor_4x4(const MatrixType& matrix)
 template<int Arch, typename Scalar, typename MatrixType, typename ResultType>
 struct compute_inverse_size4
 {
+  EIGEN_DEVICE_FUNC
   static void run(const MatrixType& matrix, ResultType& result)
   {
     result.coeffRef(0,0) =  cofactor_4x4<MatrixType,0,0>(matrix);
@@ -256,6 +259,7 @@ struct compute_inverse<MatrixType, ResultType, 4>
 template<typename MatrixType, typename ResultType>
 struct compute_inverse_and_det_with_check<MatrixType, ResultType, 4>
 {
+  EIGEN_DEVICE_FUNC
   static inline void run(
     const MatrixType& matrix,
     const typename MatrixType::RealScalar& absDeterminantThreshold,
@@ -264,6 +268,7 @@ struct compute_inverse_and_det_with_check<MatrixType, ResultType, 4>
     bool& invertible
   )
   {
+    using std::abs;
     determinant = matrix.determinant();
     invertible = abs(determinant) > absDeterminantThreshold;
     if(invertible) compute_inverse<MatrixType, ResultType>::run(matrix, inverse);
@@ -286,16 +291,19 @@ struct inverse_impl : public ReturnByValue<inverse_impl<MatrixType> >
   typedef typename MatrixType::Index Index;
   typedef typename internal::eval<MatrixType>::type MatrixTypeNested;
   typedef typename remove_all<MatrixTypeNested>::type MatrixTypeNestedCleaned;
-  const MatrixTypeNested m_matrix;
+  MatrixTypeNested m_matrix;
 
+  EIGEN_DEVICE_FUNC
   inverse_impl(const MatrixType& matrix)
     : m_matrix(matrix)
   {}
 
-  inline Index rows() const { return m_matrix.rows(); }
-  inline Index cols() const { return m_matrix.cols(); }
+  EIGEN_DEVICE_FUNC inline Index rows() const { return m_matrix.rows(); }
+  EIGEN_DEVICE_FUNC inline Index cols() const { return m_matrix.cols(); }
 
-  template<typename Dest> inline void evalTo(Dest& dst) const
+  template<typename Dest>
+  EIGEN_DEVICE_FUNC
+  inline void evalTo(Dest& dst) const
   {
     const int Size = EIGEN_PLAIN_ENUM_MIN(MatrixType::ColsAtCompileTime,Dest::ColsAtCompileTime);
     EIGEN_ONLY_USED_FOR_DEBUG(Size);
@@ -340,7 +348,7 @@ inline const internal::inverse_impl<Derived> MatrixBase<Derived>::inverse() cons
   * This is only for fixed-size square matrices of size up to 4x4.
   *
   * \param inverse Reference to the matrix in which to store the inverse.
-  * \param determinant Reference to the variable in which to store the inverse.
+  * \param determinant Reference to the variable in which to store the determinant.
   * \param invertible Reference to the bool variable in which to store whether the matrix is invertible.
   * \param absDeterminantThreshold Optional parameter controlling the invertibility check.
   *                                The matrix will be declared invertible if the absolute value of its
@@ -403,5 +411,7 @@ inline void MatrixBase<Derived>::computeInverseWithCheck(
   eigen_assert(rows() == cols());
   computeInverseAndDetWithCheck(inverse,determinant,invertible,absDeterminantThreshold);
 }
+
+} // end namespace Eigen
 
 #endif // EIGEN_INVERSE_H

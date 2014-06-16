@@ -4,24 +4,9 @@
 // Copyright (C) 2008 Gael Guennebaud <gael.guennebaud@inria.fr>
 // Copyright (C) 2006-2008 Benoit Jacob <jacob.benoit.1@gmail.com>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef EIGEN_XPRHELPER_H
 #define EIGEN_XPRHELPER_H
@@ -31,11 +16,13 @@
 // so currently we simply disable this optimization for gcc 4.3
 #if (defined __GNUG__) && !((__GNUC__==4) && (__GNUC_MINOR__==3))
   #define EIGEN_EMPTY_STRUCT_CTOR(X) \
-    EIGEN_STRONG_INLINE X() {} \
-    EIGEN_STRONG_INLINE X(const X& ) {}
+    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE X() {} \
+    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE X(const X& ) {}
 #else
   #define EIGEN_EMPTY_STRUCT_CTOR(X)
 #endif
+
+namespace Eigen {
 
 typedef EIGEN_DEFAULT_DENSE_INDEX_TYPE DenseIndex;
 
@@ -63,19 +50,40 @@ template<typename T, int Value> class variable_if_dynamic
 {
   public:
     EIGEN_EMPTY_STRUCT_CTOR(variable_if_dynamic)
-    explicit variable_if_dynamic(T v) { EIGEN_ONLY_USED_FOR_DEBUG(v); assert(v == T(Value)); }
-    static T value() { return T(Value); }
-    void setValue(T) {}
+    EIGEN_DEVICE_FUNC explicit variable_if_dynamic(T v) { EIGEN_ONLY_USED_FOR_DEBUG(v); eigen_assert(v == T(Value)); }
+    EIGEN_DEVICE_FUNC static T value() { return T(Value); }
+    EIGEN_DEVICE_FUNC void setValue(T) {}
 };
 
 template<typename T> class variable_if_dynamic<T, Dynamic>
 {
     T m_value;
-    variable_if_dynamic() { assert(false); }
+    EIGEN_DEVICE_FUNC variable_if_dynamic() { eigen_assert(false); }
   public:
-    explicit variable_if_dynamic(T value) : m_value(value) {}
-    T value() const { return m_value; }
-    void setValue(T value) { m_value = value; }
+    EIGEN_DEVICE_FUNC explicit variable_if_dynamic(T value) : m_value(value) {}
+    EIGEN_DEVICE_FUNC T value() const { return m_value; }
+    EIGEN_DEVICE_FUNC void setValue(T value) { m_value = value; }
+};
+
+/** \internal like variable_if_dynamic but for DynamicIndex
+  */
+template<typename T, int Value> class variable_if_dynamicindex
+{
+  public:
+    EIGEN_EMPTY_STRUCT_CTOR(variable_if_dynamicindex)
+    EIGEN_DEVICE_FUNC explicit variable_if_dynamicindex(T v) { EIGEN_ONLY_USED_FOR_DEBUG(v); eigen_assert(v == T(Value)); }
+    EIGEN_DEVICE_FUNC static T value() { return T(Value); }
+    EIGEN_DEVICE_FUNC void setValue(T) {}
+};
+
+template<typename T> class variable_if_dynamicindex<T, DynamicIndex>
+{
+    T m_value;
+    EIGEN_DEVICE_FUNC variable_if_dynamicindex() { eigen_assert(false); }
+  public:
+    EIGEN_DEVICE_FUNC explicit variable_if_dynamicindex(T value) : m_value(value) {}
+    EIGEN_DEVICE_FUNC T value() const { return m_value; }
+    EIGEN_DEVICE_FUNC void setValue(T value) { m_value = value; }
 };
 
 template<typename T> struct functor_traits
@@ -83,7 +91,8 @@ template<typename T> struct functor_traits
   enum
   {
     Cost = 10,
-    PacketAccess = false
+    PacketAccess = false,
+    IsRepeatable = false
   };
 };
 
@@ -92,6 +101,7 @@ template<typename T> struct packet_traits;
 template<typename T> struct unpacket_traits
 {
   typedef T type;
+  typedef T half;
   enum {size=1};
 };
 
@@ -125,10 +135,9 @@ class compute_matrix_flags
       aligned_bit =
       (
             ((Options&DontAlign)==0)
-        &&  packet_traits<Scalar>::Vectorizable
         && (
 #if EIGEN_ALIGN_STATICALLY
-             ((!is_dynamic_size_storage) && (((MaxCols*MaxRows) % packet_traits<Scalar>::size) == 0))
+             ((!is_dynamic_size_storage) && (((MaxCols*MaxRows*int(sizeof(Scalar))) % EIGEN_ALIGN_BYTES) == 0))
 #else
              0
 #endif
@@ -261,30 +270,27 @@ template<typename T> struct plain_matrix_type_row_major
 // we should be able to get rid of this one too
 template<typename T> struct must_nest_by_value { enum { ret = false }; };
 
-template<class T>
-struct is_reference
-{
-  enum { ret = false };
-};
-
-template<class T>
-struct is_reference<T&>
-{
-  enum { ret = true };
-};
-
-/**
-* \internal The reference selector for template expressions. The idea is that we don't
-* need to use references for expressions since they are light weight proxy
-* objects which should generate no copying overhead.
-**/
+/** \internal The reference selector for template expressions. The idea is that we don't
+  * need to use references for expressions since they are light weight proxy
+  * objects which should generate no copying overhead. */
 template <typename T>
 struct ref_selector
 {
   typedef typename conditional<
     bool(traits<T>::Flags & NestByRefBit),
     T const&,
-    T
+    const T
+  >::type type;
+};
+
+/** \internal Adds the const qualifier on the value-type of T2 if and only if T1 is a const type */
+template<typename T1, typename T2>
+struct transfer_constness
+{
+  typedef typename conditional<
+    bool(internal::is_const<T1>::value),
+    typename internal::add_const_on_value_type<T2>::type,
+    T2
   >::type type;
 };
 
@@ -298,11 +304,13 @@ struct ref_selector
   * \param T the type of the expression being nested
   * \param n the number of coefficient accesses in the nested expression for each coefficient access in the bigger expression.
   *
+  * Note that if no evaluation occur, then the constness of T is preserved.
+  *
   * Example. Suppose that a, b, and c are of type Matrix3d. The user forms the expression a*(b+c).
   * b+c is an expression "sum of matrices", which we will denote by S. In order to determine how to nest it,
-  * the Product expression uses: nested<S, 3>::ret, which turns out to be Matrix3d because the internal logic of
+  * the Product expression uses: nested<S, 3>::type, which turns out to be Matrix3d because the internal logic of
   * nested determined that in this case it was better to evaluate the expression b+c into a temporary. On the other hand,
-  * since a is of type Matrix3d, the Product expression nests it as nested<Matrix3d, 3>::ret, which turns out to be
+  * since a is of type Matrix3d, the Product expression nests it as nested<Matrix3d, 3>::type, which turns out to be
   * const Matrix3d&, because the internal logic of nested determined that since a was already a matrix, there was no point
   * in copying it into another matrix.
   */
@@ -316,9 +324,9 @@ template<typename T, int n=1, typename PlainObject = typename eval<T>::type> str
     // it's important that this value can still be squared without integer overflowing.
     DynamicAsInteger = 10000,
     ScalarReadCost = NumTraits<typename traits<T>::Scalar>::ReadCost,
-    ScalarReadCostAsInteger = ScalarReadCost == Dynamic ? DynamicAsInteger : ScalarReadCost,
+    ScalarReadCostAsInteger = ScalarReadCost == Dynamic ? int(DynamicAsInteger) : int(ScalarReadCost),
     CoeffReadCost = traits<T>::CoeffReadCost,
-    CoeffReadCostAsInteger = CoeffReadCost == Dynamic ? DynamicAsInteger : CoeffReadCost,
+    CoeffReadCostAsInteger = CoeffReadCost == Dynamic ? int(DynamicAsInteger) : int(CoeffReadCost),
     NAsInteger = n == Dynamic ? int(DynamicAsInteger) : n,
     CostEvalAsInteger   = (NAsInteger+1) * ScalarReadCostAsInteger + CoeffReadCostAsInteger,
     CostNoEvalAsInteger = NAsInteger * CoeffReadCostAsInteger
@@ -334,6 +342,7 @@ template<typename T, int n=1, typename PlainObject = typename eval<T>::type> str
 };
 
 template<typename T>
+EIGEN_DEVICE_FUNC
 T* const_cast_ptr(const T* ptr)
 {
   return const_cast<T*>(ptr);
@@ -456,5 +465,7 @@ struct is_lvalue
 };
 
 } // end namespace internal
+
+} // end namespace Eigen
 
 #endif // EIGEN_XPRHELPER_H

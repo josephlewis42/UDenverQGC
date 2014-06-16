@@ -4,24 +4,9 @@
 // Copyright (C) 2008-2009 Gael Guennebaud <gael.guennebaud@inria.fr>
 // Copyright (C) 2006-2008 Benoit Jacob <jacob.benoit.1@gmail.com>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 // This file is a base class plugin containing matrix specifics coefficient wise functions.
 
@@ -32,6 +17,7 @@
   *
   * \sa cwiseAbs2()
   */
+EIGEN_DEVICE_FUNC
 EIGEN_STRONG_INLINE const CwiseUnaryOp<internal::scalar_abs_op<Scalar>, const Derived>
 cwiseAbs() const { return derived(); }
 
@@ -42,6 +28,7 @@ cwiseAbs() const { return derived(); }
   *
   * \sa cwiseAbs()
   */
+EIGEN_DEVICE_FUNC
 EIGEN_STRONG_INLINE const CwiseUnaryOp<internal::scalar_abs2_op<Scalar>, const Derived>
 cwiseAbs2() const { return derived(); }
 
@@ -52,6 +39,7 @@ cwiseAbs2() const { return derived(); }
   *
   * \sa cwisePow(), cwiseSquare()
   */
+EIGEN_DEVICE_FUNC
 inline const CwiseUnaryOp<internal::scalar_sqrt_op<Scalar>, const Derived>
 cwiseSqrt() const { return derived(); }
 
@@ -62,6 +50,7 @@ cwiseSqrt() const { return derived(); }
   *
   * \sa cwiseProduct()
   */
+EIGEN_DEVICE_FUNC
 inline const CwiseUnaryOp<internal::scalar_inverse_op<Scalar>, const Derived>
 cwiseInverse() const { return derived(); }
 
@@ -74,6 +63,7 @@ cwiseInverse() const { return derived(); }
   *
   * \sa cwiseEqual(const MatrixBase<OtherDerived> &) const
   */
+EIGEN_DEVICE_FUNC
 inline const CwiseUnaryOp<std::binder1st<std::equal_to<Scalar> >, const Derived>
 cwiseEqual(const Scalar& s) const
 {

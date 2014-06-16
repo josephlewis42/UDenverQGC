@@ -13,8 +13,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace Eigen {
-
 /** \defgroup Geometry_Module Geometry module
   *
   *
@@ -49,7 +47,9 @@ namespace Eigen {
   #include "src/Geometry/AlignedBox.h"
   #include "src/Geometry/Umeyama.h"
 
-  #if defined EIGEN_VECTORIZE_SSE
+  // Use the SSE optimized version whenever possible. At the moment the
+  // SSE version doesn't compile when AVX is enabled
+  #if defined EIGEN_VECTORIZE_SSE && !defined EIGEN_VECTORIZE_AVX
     #include "src/Geometry/arch/Geometry_SSE.h"
   #endif
 #endif
@@ -57,8 +57,6 @@ namespace Eigen {
 #ifdef EIGEN2_SUPPORT
 #include "src/Eigen2Support/Geometry/All.h"
 #endif
-
-} // namespace Eigen
 
 #include "src/Core/util/ReenableStupidWarnings.h"
 
