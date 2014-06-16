@@ -43,6 +43,7 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
             mavlink_msg_ualberta_altimiter_decode(&message, &altimiter_data);
             float meters = altimiter_data.dist / 100;
             emit altimeter(meters);
+            emit valueChanged(uasId, "Altimeter", "m", meters, getUnixTime());
             //qDebug() << "Got message \n" << altimiter_data.dist;
             break;
         }
