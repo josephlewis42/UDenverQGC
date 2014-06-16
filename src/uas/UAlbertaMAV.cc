@@ -21,7 +21,7 @@ This file is part of the QGROUNDCONTROL project
 
 ======================================================================*/
 #include "UAlbertaMAV.h"
-#include "../../../mavlink/include/ualberta/ualberta.h"
+#include "../../../UDenverMavlink/include/ualberta/ualberta.h"
 
 UAlbertaMAV::UAlbertaMAV(MAVLinkProtocol* protocol, int id)
 :UAS(protocol, id)
@@ -37,14 +37,14 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
 	{
 		switch(message.msgid)
 		{
-        case MAVLINK_MSG_ID_UALBERTA_ALTIMITER:
+        case MAVLINK_MSG_ID_UALBERTA_ALTIMETER:
         {
-            mavlink_ualberta_altimiter_t altimiter_data;
-            mavlink_msg_ualberta_altimiter_decode(&message, &altimiter_data);
-            float meters = altimiter_data.dist / 100;
+            mavlink_ualberta_altimeter_t altimeter_data;
+            mavlink_msg_ualberta_altimeter_decode(&message, &altimeter_data);
+            float meters = altimeter_data.dist / 100;
             emit altimeter(meters);
             emit valueChanged(uasId, "Altimeter", "m", meters, getUnixTime());
-            //qDebug() << "Got message \n" << altimiter_data.dist;
+            //qDebug() << "Got message \n" << altimeter_data.dist;
             break;
         }
 		case MAVLINK_MSG_ID_UALBERTA_SYS_STATUS:
