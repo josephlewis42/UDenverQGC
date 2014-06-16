@@ -21,7 +21,7 @@ This file is part of the QGROUNDCONTROL project
 
 ======================================================================*/
 #include "UAlbertaMAV.h"
-#include "../../../UDenverMavlink/include/ualberta/ualberta.h"
+#include "ualberta.h"
 
 UAlbertaMAV::UAlbertaMAV(MAVLinkProtocol* protocol, int id)
 :UAS(protocol, id)
@@ -328,6 +328,21 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
 		}
 		break;
 
+		case MAVLINK_MSG_ID_UDENVER_CPU_USAGE:
+		{
+    		// saves the CPU usage from mavlink
+    		mavlink_udenver_cpu_usage_t cpu;
+
+		// converts the generic message we got to the CPU one we understand
+    		mavlink_msg_udenver_cpu_usage_decode(&message, &cpu);
+
+    		// emit a "CPU usage" event, which allows us to graph the usage
+    		// we use the current UNIX time as the timestamp, although you may
+    		// want to get this from the system instead, left as an exercise
+    		// for the reader.
+    		emit valueChanged(uasId, "CPU usage", "", cpu.cpu_usage, getUnixTime());
+    			break;
+		}
 
 		default:
 //                        if (message.msgid != 0 && message.msgid != 30)
