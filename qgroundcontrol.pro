@@ -87,37 +87,30 @@ exists(user_config.pri) {
     message("Adding support for additional MAVLink messages for: " $$MAVLINK_CONF)
     message("------------------------------------------------------------------------")
 }
-INCLUDEPATH += $$BASEDIR/../mavlink/include/common
-INCLUDEPATH += $$BASEDIR/../mavlink/include
-INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/common
-INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include
+INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include/common
+INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include
 contains(MAVLINK_CONF, pixhawk) { 
     # Remove the default set - it is included anyway
-    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
-    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/../UDenverMavlink/include/common
 
     # PIXHAWK SPECIAL MESSAGES
-    INCLUDEPATH += $$BASEDIR/../mavlink/include/pixhawk
-    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/pixhawk
+    INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include/pixhawk
     DEFINES += QGC_USE_PIXHAWK_MESSAGES
 }
 contains(MAVLINK_CONF, slugs) { 
     # Remove the default set - it is included anyway
-    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
-    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/../UDenverMavlink/include/common
     
     # SLUGS SPECIAL MESSAGES
-    INCLUDEPATH += $$BASEDIR/../mavlink/include/slugs
-    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/slugs
+    INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include/slugs
     DEFINES += QGC_USE_SLUGS_MESSAGES
 }
 contains(MAVLINK_CONF, ualberta) { 
     # Remove the default set - it is included anyway
-    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
-    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/../UDenverMavlink/include/common
     
     # UALBERTA SPECIAL MESSAGES
-    INCLUDEPATH += $$BASEDIR/../mavlink/include/ualberta
+    INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include/ualberta
     DEFINES += QGC_USE_UALBERTA_MESSAGES
 
     #NOTE this will always produce release -jal 2013-09-27
@@ -126,22 +119,18 @@ contains(MAVLINK_CONF, ualberta) {
 }
 contains(MAVLINK_CONF, ardupilotmega) { 
     # Remove the default set - it is included anyway
-    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
-    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/../UDenverMavlink/include/common
     
     # UALBERTA SPECIAL MESSAGES
-    INCLUDEPATH += $$BASEDIR/../mavlink/include/ardupilotmega
-    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/ardupilotmega
+    INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include/ardupilotmega
     DEFINES += QGC_USE_ARDUPILOTMEGA_MESSAGES
 }
 contains(MAVLINK_CONF, senseSoar) { 
     # Remove the default set - it is included anyway
-    INCLUDEPATH -= $$BASEDIR/../mavlink/include/common
-    INCLUDEPATH -= $$BASEDIR/thirdParty/mavlink/include/common
+    INCLUDEPATH -= $$BASEDIR/../UDenverMavlink/include/common
     
     # SENSESOAR SPECIAL MESSAGES
-    INCLUDEPATH += $$BASEDIR/../mavlink/include/SenseSoar
-    INCLUDEPATH += $$BASEDIR/thirdParty/mavlink/include/SenseSoar
+    INCLUDEPATH += $$BASEDIR/../UDenverMavlink/include/SenseSoar
     DEFINES += QGC_USE_SENSESOAR_MESSAGES
 }
 
@@ -396,7 +385,7 @@ contains(DEPENDENCIES_PRESENT, protobuf):contains(MAVLINK_CONF, pixhawk) {
     message("Including headers for Protocol Buffers")
 
     # Enable only if protobuf is available
-    HEADERS += ../mavlink/include/pixhawk/pixhawk.pb.h \
+    HEADERS += ../UDenverMavlink/include/pixhawk/pixhawk.pb.h \
                src/ui/map3D/ObstacleGroupNode.h
 }
 contains(DEPENDENCIES_PRESENT, libfreenect) { 
@@ -541,7 +530,7 @@ contains(DEPENDENCIES_PRESENT, protobuf):contains(MAVLINK_CONF, pixhawk) {
     message("Including sources for Protocol Buffers")
 
     # Enable only if protobuf is available
-    SOURCES += ../mavlink/src/pixhawk/pixhawk.pb.cc \
+    SOURCES += ../UDenverMavlink/src/pixhawk/pixhawk.pb.cc \
                src/ui/map3D/ObstacleGroupNode.cc
 }
 contains(DEPENDENCIES_PRESENT, libfreenect) { 
