@@ -1,9 +1,9 @@
 UDenver QGroundControl Open Source Micro Air Vehicle Ground Control Station
 
-Project:
+Original Project:
 http://qgroundcontrol.org
 
-Files:
+Original Repositories:
 http://github.com/mavlink/qgroundcontrol
 http://github.com/mavlink/mavlink
 
@@ -11,7 +11,7 @@ Credits:
 http://qgroundcontrol.org/credits
 
 **********************************************************************************************
-* PLEASE NOTE: YOU NEED TO DOWNLOAD THE MAVLINK LIBRARY IN ORDER TO COMPILE THIS APPLICATION *
+* PLEASE NOTE: YOU NEED TO DOWNLOAD THE UDENVERMAVLINK LIBRARY (https://github.com/josephlewis42/UDenverMavlink) IN ORDER TO COMPILE THIS APPLICATION *
 **********************************************************************************************
 
 
