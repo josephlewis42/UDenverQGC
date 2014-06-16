@@ -39,7 +39,11 @@ To Build Using QTCreator
 To Build From Command Line
 --------------------------
 
-1. Run
+1. Build with:
 
 		qmake qgroundcontrol.pro
 		make
+
+1. Run with:
+
+		release/qgroundcontrol
