@@ -221,6 +221,7 @@ void UAlbertaControlWidget::setUAS(UASInterface* uas)
 			disconnect(mav, SIGNAL(attitudeSource(QString)), ui.attitude_source_label, SLOT(setText(QString)));
 			disconnect(mav, SIGNAL(rpm(int,int)), this, SLOT(displayRPM(int,int)));
 			disconnect(mav, SIGNAL(collective(float)), this, SLOT(displayCollective(float)));
+            disconnect(mav, SIGNAL(altimeter(float)), this, SLOT(displayAltimeter(float)));
 			disconnect(mav, SIGNAL(voltages(float,float)), this, SLOT(displayVoltages(float,float)));
 			disconnect(mav, SIGNAL(novatel_satellites(int)),this, SLOT(displaySatellites(int)));
 			disconnect(mav,SIGNAL(novatel_gps_position(int,int,QVector<float>)),this,SLOT(displayPositionError(int,int,QVector<float>)));
@@ -245,6 +246,7 @@ void UAlbertaControlWidget::setUAS(UASInterface* uas)
 		connect(mav, SIGNAL(attitudeSource(QString)), ui.attitude_source_label, SLOT(setText(QString)));
 		connect(mav, SIGNAL(rpm(int,int)), this, SLOT(displayRPM(int,int)));
 		connect(mav, SIGNAL(collective(float)), this, SLOT(displayCollective(float)));
+        connect(mav, SIGNAL(altimeter(float)), this, SLOT(displayAltimeter(float)));
 		connect(mav, SIGNAL(refPosChanged(QVector<float>)), this, SLOT(displaySetpoint(QVector<float>)));
 		connect(mav, SIGNAL(voltages(float,float)), this, SLOT(displayVoltages(float,float)));
 		connect(mav, SIGNAL(novatel_satellites(int)),this, SLOT(displaySatellites(int)));
@@ -410,6 +412,11 @@ void UAlbertaControlWidget::displaySetpoint(QVector<float> setpoint)
 void UAlbertaControlWidget::displayCollective(float collective)
 {
 	ui.collective_pitch_label->setText(QString("%1").arg(collective));
+}
+
+void UAlbertaControlWidget::displayAltimeter(float dist)
+{
+    ui.altimeter_height_label->setText(QString("%1").arg(dist));
 }
 
 void UAlbertaControlWidget::displayVelocity(QVector<float> vel)

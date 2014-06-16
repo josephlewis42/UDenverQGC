@@ -62,7 +62,8 @@ signals:
 	void attitudeSource(QString attitude_source);
 	void voltages(float receiver,float avionics);
 	void rpm(int engine, int rotor);
-	void collective(float collective);
+    void collective(float collective);
+    void altimeter(float dist);
 	void novatel_satellites(int num_sats);
 	void novatel_gps_position(int pos_type,int pos_status,QVector<float> pos_error);
 	void novatel_gps_velocity(int vel_type,QVector<float> vel_error);

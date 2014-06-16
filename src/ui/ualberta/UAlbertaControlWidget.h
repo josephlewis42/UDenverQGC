@@ -79,6 +79,8 @@ public slots:
 	void displayRPM(int engine,int rotor);
 	/// display main rotor collective pitch
 	void displayCollective(float collective);
+    /// display altimeter height
+    void displayAltimeter(float dist);
 	/// display the position setpoint
 	void displaySetpoint(QVector<float> setpoint);
 	/// display Voltages

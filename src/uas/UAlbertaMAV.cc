@@ -39,7 +39,11 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
 		{
         case MAVLINK_MSG_ID_UALBERTA_ALTIMITER:
         {
-            //do stuff with this value
+            mavlink_ualberta_altimiter_t altimiter_data;
+            mavlink_msg_ualberta_altimiter_decode(&message, &altimiter_data);
+            float meters = altimiter_data.dist / 100;
+            emit altimeter(meters);
+            //qDebug() << "Got message \n" << altimiter_data.dist;
             break;
         }
 		case MAVLINK_MSG_ID_UALBERTA_SYS_STATUS:
