@@ -20,7 +20,7 @@ Linux
 =====
 
 
-1. To build on Linux, make sure you have the UDenverMavlink folder at the same level as the UDenverQGC
+1. To build on Linux, make sure you have the 'UDenverMavlink' folder at the same level as the 'UDenverQGC' folder.
 
 		sudo apt-get install phonon libqt4-dev \
 		libphonon-dev libphonon4 phonon-backend-gstreamer \
@@ -39,7 +39,11 @@ To Build Using QTCreator
 To Build From Command Line
 --------------------------
 
-1. Run
+1. Build with:
 
 		qmake qgroundcontrol.pro
 		make
+
+1. Run with:
+
+		release/qgroundcontrol
