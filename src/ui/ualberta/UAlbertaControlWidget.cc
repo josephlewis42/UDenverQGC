@@ -384,19 +384,19 @@ void UAlbertaControlWidget::displayPositionError(int type, int statusInt, QVecto
     }
 
     ui.pos_sol_status_label->setText(status);
-    ui.pos_std_label->setText(QString("%1 %2 %3").arg(error[0],0,'g',3).arg(error[1],0,'g',3).arg(error[2],0,'g',3));
+    ui.pos_std_label->setText(QString("%1 %2 %3").arg(error[0],7,'f',4).arg(error[1],7,'f',4).arg(error[2],7,'f',4));
 }
 
 void UAlbertaControlWidget::displayVelocityError(int type, QVector<float> error)
 {
     ui.vel_sol_type_label->setText(getStrVelocityPositionErr(type));
-    ui.vel_std_label->setText(QString("%1 %2 %3").arg(error[0],0,'g',3).arg(error[1],0,'g',3).arg(error[2],0,'g',3));
+    ui.vel_std_label->setText(QString("%1 %2 %3").arg(error[0],7,'f',4).arg(error[1],7,'f',4).arg(error[2],7,'f',4));
 }
 
 void UAlbertaControlWidget::displayPosition(QVector<float> llh, QVector<float> ned)
 {
-    ui.ned_position_label->setText(QString("%1, %2, %3").arg(ned[0],0,'g',3).arg(ned[1],0,'g',3).arg(ned[2],0,'g',3));
-        ui.llh_position_label->setText(QString("%1, %2, %3").arg(llh[0],0,'g',4).arg(llh[1],0,'g',4).arg(llh[2],0,'g',4));
+    ui.ned_position_label->setText(QString("%1, %2, %3").arg(ned[0],7,'f',4).arg(ned[1],7,'f',4).arg(ned[2],7,'f',4));
+    ui.llh_position_label->setText(QString("%1, %2, %3").arg(llh[0],8,'f',4).arg(llh[1],8,'f',4).arg(llh[2],8,'f',4));
 }
 
 void UAlbertaControlWidget::displayOrigin(QVector<float> origin)
@@ -421,11 +421,11 @@ void UAlbertaControlWidget::displayAltimeter(float dist)
 
 void UAlbertaControlWidget::displayVelocity(QVector<float> vel)
 {
-    ui.ned_velocity_label->setText(QString("%1, %2, %3").arg(vel[0],0,'g',3).arg(vel[1],0,'g',3).arg(vel[2],0,'g',3));
+    ui.ned_velocity_label->setText(QString("%1, %2, %3").arg(vel[0],6,'f',3).arg(vel[1],6,'f',3).arg(vel[2],6,'f',3));
 }
 
 void UAlbertaControlWidget::displayEuler(QVector<float> ahrs, QVector<float> nav)
 {
-    ui.ahrs_euler_label->setText(QString("%1, %2, %3").arg(ahrs[0],0, 'g', 3).arg(ahrs[1], 0, 'g', 3).arg(ahrs[2], 0, 'g', 3));
-    ui.nav_euler_label->setText(QString("%1, %2, %3").arg(nav[0],0,'g',3).arg(nav[1],0,'g',3).arg(nav[2],0,'g',3));
+    ui.ahrs_euler_label->setText(QString("%1, %2, %3").arg(ahrs[0],8, 'f', 3).arg(ahrs[1], 8, 'f', 3).arg(ahrs[2], 8, 'f', 3));
+    ui.nav_euler_label->setText(QString("%1, %2, %3").arg(nav[0],8,'f',3).arg(nav[1],8,'f',3).arg(nav[2],8,'f',3));
 }
