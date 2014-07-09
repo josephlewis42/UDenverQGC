@@ -341,8 +341,22 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
     		// want to get this from the system instead, left as an exercise
     		// for the reader.
     		emit valueChanged(uasId, "CPU usage", "", cpu.cpu_usage, getUnixTime());
+    		emit valueChanged(uasId, "Total RAM", "mb", cpu.mem_total_kb, getUnixTime());
+       		emit valueChanged(uasId, "Free RAM", "mb", cpu.mem_free_kb, getUnixTime());
     			break;
 		}
+
+        case MAVLINK_MSG_ID_SYS_STATUS:
+        {
+            mavlink_sys_status_t stat;
+            mavlink_msg_sys_status_decode(&message, &stat);
+
+            emit valueChanged(uasId, "Battery Remaining", "", stat.battery_remaining, getUnixTime());
+            emit valueChanged(uasId, "Comm Drop Rate", "", stat.drop_rate_comm, getUnixTime());
+            emit valueChanged(uasId, "System Load", "Pct", stat.load, getUnixTime());
+            emit valueChanged(uasId, "Battery Voltage", "Volts", stat.voltage_battery, getUnixTime());
+            UAS::receiveMessage(link, message); // pass forward
+        }
 
 		default:
 //                        if (message.msgid != 0 && message.msgid != 30)
@@ -350,6 +364,7 @@ void UAlbertaMAV::receiveMessage(LinkInterface* link, mavlink_message_t message)
 			UAS::receiveMessage(link, message);
 			break;
 		}
+
 	}
 }
 
