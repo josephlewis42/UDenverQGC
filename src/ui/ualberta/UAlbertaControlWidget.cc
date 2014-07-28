@@ -53,6 +53,7 @@ UAlbertaControlWidget::UAlbertaControlWidget(QWidget *parent) :
 	connect(ui.set_attitude_button, SIGNAL(clicked()), this, SLOT(initAttitude()));
 	connect(ui.attitude_source_button, SIGNAL(clicked()), this, SLOT(setAttitudeSource()));
 	connect(ui.setRefPos, SIGNAL(clicked()), this, SLOT(setReferencePosition()));
+    connect(ui.new_log_point_button, SIGNAL(clicked()), this, SLOT(startNewLog()));
 
 
 	// note string appear in same order as mavlink enum (necessary for indexing)
@@ -166,6 +167,18 @@ void UAlbertaControlWidget::setReferencePosition()
 		mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_SET_REF_POS, 0);
 		mav->sendMessage(msg);
 	}
+}
+
+void UAlbertaControlWidget::startNewLog()
+{
+    qDebug() << "Start new log files";
+    UAlbertaMAV* mav = dynamic_cast<UAlbertaMAV*>(UASManager::instance()->getUASForId(uas));
+    if (mav)
+    {
+        mavlink_message_t msg;
+        mavlink_msg_ualberta_action_pack(uas, 0, &msg, UALBERTA_NEW_LOG_POINT, 0);
+        mav->sendMessage(msg);
+    }
 }
 
 void UAlbertaControlWidget::shutdown()

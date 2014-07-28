@@ -735,6 +735,17 @@
      </item>
     </layout>
    </item>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QPushButton" name="new_log_point_button">
+       <property name="text">
+        <string>Start New Log Point</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
   </layout>
  </widget>
  <resources>

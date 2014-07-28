@@ -66,6 +66,8 @@ public slots:
 	void initAttitude();
 	/// slot to set the position setpoint
 	void setReferencePosition();
+    /// slot to start new log files
+    void startNewLog();
 
 	/// update position display
 	void displayPosition(QVector<float> llh, QVector<float> ned);
